@@ -29,6 +29,9 @@
 [submodule "blender"]
     path = deps/blender
     url = https://github.com/r-lyeh/blender
+[submodule "bubble"]
+    path = deps/bubble
+    url = https://github.com/r-lyeh/bubble
 [submodule "bundle"]
     path = deps/bundle
     url = https://github.com/r-lyeh/bundle

@@ -1,12 +1,24 @@
 #include <cassert>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <cstdint>
+#include <future>
 
 #include <wire/wire.hpp>
 #include <sao/file.hpp>
 #include <bundle/bundle.hpp>
+#include <bubble/bubble.hpp>
+
+#define BUNDLER_BUILD "DEBUG"
+#define BUNDLER_URL "https://github.com/r-lyeh/bundler"
+#define BUNDLER_VERSION "1.1.0"
+#define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
+
+#if defined(NDEBUG) || defined(_NDEBUG)
+#undef  BUNDLER_BUILD
+#define BUNDLER_BUILD "RELEASE"
+#endif
 
 struct getopt : public std::map< wire::string, wire::string >
 {
@@ -65,16 +77,8 @@ struct getopt : public std::map< wire::string, wire::string >
     }
 };
 
-int head( const wire::string &app ) {
-#if defined(NDEBUG) || defined(_NDEBUG)
-    const char *build = "RELEASE";
-#else
-    const char *build = "DEBUG";
-#endif
-    const char *version = "v1.0.0";
-    const char *url = "https://github.com/r-lyeh/bundler";
-
-    std::cout << app << " " << version << " " << build << ". Compiled on " << __DATE__  << " - " << url << std::endl;
+int head( const std::string &appname ) {
+    std::cout << appname << ": " << BUNDLER_TEXT ". Compiled on " __DATE__ " - " BUNDLER_URL << std::endl;
     return 0;
 }
 
@@ -92,9 +96,11 @@ int help( const wire::string &app ) {
     std::cout << "\t-p or --pack        pack all files found" << std::endl;
     std::cout << "\t-u or --unpack      unpack all files found" << std::endl;
     std::cout << "\t-x or --xor         unpack all packed files found; pack all unpacked files found" << std::endl;
+    std::cout << std::endl;
     std::cout << "\t-w or --wrap file   wrap all files found into a zip container" << std::endl;
     std::cout << "\t-i or --index       show table-of-contents, if using --wrap" << std::endl;
     std::cout << "\t-f or --flat        discard path filename information, if using --wrap" << std::endl;
+    std::cout << "\t-m or --move        purge files after wrapping" << std::endl;
     std::cout << std::endl;
     return 0;
 }
@@ -134,6 +140,7 @@ int main( int argc, const char **argv ) {
     const bool wrapit = args.has("-w") || args.has("--wrap");
     const bool flat = args.has("-f") || args.has("--flat");
     const bool index = args.has("-i") || args.has("--index");
+    const bool move = args.has("-m") || args.has("--move");
     std::string wrapname;
 
     if( !quiet )
@@ -158,7 +165,8 @@ int main( int argc, const char **argv ) {
             || args[i] == "-p" || args[i] == "--pack"
             || args[i] == "-u" || args[i] == "--unpack"
             || args[i] == "-f" || args[i] == "--flat"
-            || args[i] == "-i" || args[i] == "--index" ) {
+            || args[i] == "-i" || args[i] == "--index"
+            || args[i] == "-m" || args[i] == "--move" ) {
             continue;
          }
          if( args[i] == "-w" || args[i] == "--wrap" ) {
@@ -169,15 +177,43 @@ int main( int argc, const char **argv ) {
          folder.include( args[i], {"*"}, recursive );
      }
 
-     if( folder.empty() ) {
+    if( folder.empty() ) {
         std::cout << "No files provided." << std::endl;
         return -1;
-     }
+    }
+
+    int progress_pct = 0, progress_idx = 0, appexit = 0;
+    std::string title_mode, title_name;
+
+    std::thread bubble( [&]() {
+        if( !quiet )
+        bubble::show( bubble::string() <<
+            "title.text=" << BUNDLER_TEXT " - " << progress_pct << "%;"
+            "body.icon=8;"
+            "head.text=;"
+            "body.text=;"
+            "style.minimizable=1;"
+            "progress=0;",
+            [&]( bubble::vars &vars ) {
+                vars["head.text"] = title_mode;
+                vars["title.text"] = bubble::string() << BUNDLER_TEXT " - " << progress_pct << "%";
+                vars["progress"] = progress_pct;
+                vars["body.text"] = title_name;
+                if( appexit ) vars["exit"] = 0;
+            }
+        );
+    } );
 
     for( auto &file : folder ) {
 
-        if( file.is_dir() )
+        progress_pct = (++progress_idx * 100) / folder.size();
+
+        if( file.is_dir() ) {
+            title_name.clear();
             continue;
+        } else {
+            title_name = file.name();
+        }
 
          std::string pathfile = file.name(), input, output;
 
@@ -212,8 +248,10 @@ int main( int argc, const char **argv ) {
 
         if( packit_ ) {
             output = bundle::pack( bundle::LZMA, input );
+            title_mode = ( !xorit ? "pack" : "unpack" );
         } else {
             output = bundle::unpack( input );
+            title_mode = ( !xorit ? "unpack" : "pack" );
         }
 
         /*
@@ -238,10 +276,13 @@ int main( int argc, const char **argv ) {
             }
 
             if( (!packit_) || (!skipped) ) {
+                ok = false;
                 std::ofstream ofs( pathfile.c_str(), std::ios::binary );
-                ofs.write( &output[0], output.size() );
-                if( !ofs.good() ) {
-                    ok = false;
+                if( ofs.good() ) {
+                    ofs.write( &output[0], output.size() );
+                    if( ofs.good() ) {
+                        ok = true;
+                    }
                 }
             }
         }
@@ -264,6 +305,8 @@ int main( int argc, const char **argv ) {
             total_output += output.size();
         }
     }
+
+    progress_pct = 101; // show marquee
 
     if( wrapit && !wrapname.empty() ) {
 
@@ -295,6 +338,20 @@ int main( int argc, const char **argv ) {
         if( !test ) {
             std::ofstream ofs( wrapname, std::ios::binary );
             ofs << pak.bin(bundle::NONE);
+
+            if( !ofs.good() )
+                numerrors++;
+        }
+
+        if( wrapit && move && !test && 0 == numerrors ) {
+            for( auto &file : folder ) {
+                bool ok = sao::file( file ).remove();
+                if( !ok ) numerrors ++;
+                if( !ok && !quiet ) std::cout << "[FAIL] cannot delete file: " << file.name() << std::endl;
+            }
+            if( !quiet ) {
+                std::cout << (numerrors > 0 ? "[FAIL] " : "[ OK ] " ) << "move: " << folder.size() << " files" << std::endl;
+            }
         }
     }
 
@@ -303,8 +360,12 @@ int main( int argc, const char **argv ) {
         std::cout << processed << " processed files, " << numerrors << " errors; " <<  total_input << " bytes -> " << total_output << " bytes; (" << ratio( total_input, total_output ) << "%)" << std::endl;
     }
 
+    appexit = 1;
+    bubble.join();
+
     return numerrors;
 }
 
 #include <sao/file.cpp>
 #include <bundle/bundle.cpp>
+#include <bubble/bubble.cpp>

@@ -17,13 +17,15 @@ Options:
         -p or --pack        pack all files found
         -u or --unpack      unpack all files found
         -x or --xor         unpack all packed files found; pack all unpacked files found
+
         -w or --wrap file   wrap all files found into a zip container
         -i or --index       show table-of-contents, if using --wrap
         -f or --flat        discard path filename information, if using --wrap
+        -m or --move        purge files after wrapping
 ```
 
 ### build
 ```
 echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /EHsc /link setargv.obj
-echo mac osx && clang++ bundler.cc -I deps -O3 -DNDEBUG
+echo mac osx && clang++ bundler.cc -obundler.mac -I deps -O3 -DNDEBUG --std=c++11
 ```

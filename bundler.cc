@@ -12,7 +12,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.0"
+#define BUNDLER_VERSION "1.1.1"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -93,7 +93,7 @@ int help( const wire::string &app ) {
     std::cout << "\t-q or --quiet       do not print to screen, unless errors are found" << std::endl;
     std::cout << "\t-t or --test        do not write files into disk" << std::endl;
     std::cout << "\t-r or --recursive   glob files in subdirectories" << std::endl;
-    std::cout << "\t-p or --pack        pack all files found" << std::endl;
+    std::cout << "\t-p or --pack (alg)  pack all files found using provided algorithm = { none, lz4, lzma (default), deflate, shoco }" << std::endl;
     std::cout << "\t-u or --unpack      unpack all files found" << std::endl;
     std::cout << "\t-x or --xor         unpack all packed files found; pack all unpacked files found" << std::endl;
     std::cout << std::endl;
@@ -113,6 +113,8 @@ double ratio( const T &A, const U &B ) {
     double ratio = 100 - ( (100 * min) / max );
     return ratio;
 }
+
+int PACKING_ALGORITHM = bundle::LZMA;
 
 int main( int argc, const char **argv ) {
     getopt args( argc, argv );
@@ -162,11 +164,21 @@ int main( int argc, const char **argv ) {
             || args[i] == "-t" || args[i] == "--test"
             || args[i] == "-r" || args[i] == "--recursive"
             || args[i] == "-x" || args[i] == "--xor"
-            || args[i] == "-p" || args[i] == "--pack"
             || args[i] == "-u" || args[i] == "--unpack"
             || args[i] == "-f" || args[i] == "--flat"
             || args[i] == "-i" || args[i] == "--index"
             || args[i] == "-m" || args[i] == "--move" ) {
+            continue;
+         }
+         if( args[i] == "-p" || args[i] == "--pack" ) {
+            if( args.has(++i) ) {
+                /**/ if( args[i].lowercase() == "none" ) PACKING_ALGORITHM = bundle::NONE;
+                else if( args[i].lowercase() == "lz4" ) PACKING_ALGORITHM = bundle::LZ4;
+                else if( args[i].lowercase() == "lzma" ) PACKING_ALGORITHM = bundle::LZMA;
+                else if( args[i].lowercase() == "deflate" ) PACKING_ALGORITHM = bundle::DEFLATE;
+                else if( args[i].lowercase() == "shoco" ) PACKING_ALGORITHM = bundle::SHOCO;
+                else --i;
+            }
             continue;
          }
          if( args[i] == "-w" || args[i] == "--wrap" ) {
@@ -247,11 +259,13 @@ int main( int argc, const char **argv ) {
         int packit_ = ( xorit ? bundle::is_packed( input ) ^ true : packit );
 
         if( packit_ ) {
-            output = bundle::pack( bundle::LZMA, input );
             title_mode = ( !xorit ? "pack" : "unpack" );
+            std::cout << "[    ] " << title_mode << ": " << pathfile << " ...\r";
+            output = bundle::pack( PACKING_ALGORITHM, input );
         } else {
-            output = bundle::unpack( input );
             title_mode = ( !xorit ? "unpack" : "pack" );
+            output = bundle::unpack( input );
+            std::cout << "[    ] " << title_mode << ": " << pathfile << " ...\r";
         }
 
         /*
@@ -295,7 +309,7 @@ int main( int argc, const char **argv ) {
             if( !quiet ) {
                 std::string extra = ( skipped ? "(skipped)" : "" );
                 if( packit_ ) {
-                    std::cout << "[ OK ] pack: " << pathfile << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
+                    std::cout << "[ OK ] pack (" << bundle::name_of(PACKING_ALGORITHM) << "): " << pathfile << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
                 } else {
                     std::cout << "[ OK ] unpack: " << pathfile << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
                 }

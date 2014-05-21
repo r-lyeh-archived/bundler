@@ -14,7 +14,7 @@ Options:
         -q or --quiet       do not print to screen, unless errors are found
         -t or --test        do not write files into disk
         -r or --recursive   glob files in subdirectories
-        -p or --pack        pack all files found
+        -p or --pack (alg)  pack all files found using provided algorithm = { lz4, lzma (default), lz77, shoco }
         -u or --unpack      unpack all files found
         -x or --xor         unpack all packed files found; pack all unpacked files found
 

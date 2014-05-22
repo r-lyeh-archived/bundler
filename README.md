@@ -5,27 +5,26 @@ A command-line compression tool
 
 ### usage
 ```
+bundler: Bundler 1.1.2 (RELEASE). Compiled on May 22 2014 - https://github.com/r-lyeh/bundler
+
 Usage:
-        bundler [options] files_and_or_folders...
+        bundler command archive.zip files[...] [options[...]]
 
+Command:
+        m or move              move files to archive
+        p or pack              pack files into archive
+        t or test              test archive
 Options:
-        -h or --help        this screen
-        -v or --verbose     show extra info
-        -q or --quiet       do not print to screen, unless errors are found
-        -t or --test        do not write files into disk
-        -r or --recursive   glob files in subdirectories
-        -p or --pack (alg)  pack all files found using provided algorithm = { lz4, lzma (default), lz77, shoco }
-        -u or --unpack      unpack all files found
-        -x or --xor         unpack all packed files found; pack all unpacked files found
-
-        -w or --wrap file   wrap all files found into a zip container
-        -i or --index       show table-of-contents, if using --wrap
-        -f or --flat        discard path filename information, if using --wrap
-        -m or --move        purge files after wrapping
+        -f or --flat           discard path filename information, if using --pack or --move
+        -h or --help           this screen
+        -q or --quiet          be silent, unless errors are found
+        -r or --recursive      recurse subdirectories
+        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), deflate, shoco }
+        -v or --verbose        show extra info
 ```
 
 ### build
 ```
-echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /EHsc /link setargv.obj
+echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /EHsc /link setargv.obj && mt.exe -manifest bundler.exe.manifest -outputresource:bundler.exe;1
 echo mac osx && clang++ bundler.cc -obundler.mac -I deps -O3 -DNDEBUG --std=c++11
 ```

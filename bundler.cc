@@ -6,13 +6,13 @@
 #include <future>
 
 #include <wire/wire.hpp>
-#include <sao/file.hpp>
+#include <sao/sao.hpp>
 #include <bundle/bundle.hpp>
 #include <bubble/bubble.hpp>
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.1"
+#define BUNDLER_VERSION "1.1.2"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -85,22 +85,19 @@ int head( const std::string &appname ) {
 int help( const wire::string &app ) {
     std::cout << std::endl;
     std::cout << "Usage:" << std::endl;
-    std::cout << "\t" << app << " [options] files_and_or_folders..." << std::endl;
+    std::cout << "\t" << app << " command archive.zip files[...] [options[...]]" << std::endl;
     std::cout << std::endl;
+    std::cout << "Command:" << std::endl;
+    std::cout << "\tm or move              move files to archive" << std::endl;
+    std::cout << "\tp or pack              pack files into archive" << std::endl;
+    std::cout << "\tt or test              test archive" << std::endl;
     std::cout << "Options:" << std::endl;
-    std::cout << "\t-h or --help        this screen" << std::endl;
-    std::cout << "\t-v or --verbose     show extra info" << std::endl;
-    std::cout << "\t-q or --quiet       do not print to screen, unless errors are found" << std::endl;
-    std::cout << "\t-t or --test        do not write files into disk" << std::endl;
-    std::cout << "\t-r or --recursive   glob files in subdirectories" << std::endl;
-    std::cout << "\t-p or --pack (alg)  pack all files found using provided algorithm = { none, lz4, lzma (default), deflate, shoco }" << std::endl;
-    std::cout << "\t-u or --unpack      unpack all files found" << std::endl;
-    std::cout << "\t-x or --xor         unpack all packed files found; pack all unpacked files found" << std::endl;
-    std::cout << std::endl;
-    std::cout << "\t-w or --wrap file   wrap all files found into a zip container" << std::endl;
-    std::cout << "\t-i or --index       show table-of-contents, if using --wrap" << std::endl;
-    std::cout << "\t-f or --flat        discard path filename information, if using --wrap" << std::endl;
-    std::cout << "\t-m or --move        purge files after wrapping" << std::endl;
+    std::cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
+    std::cout << "\t-h or --help           this screen" << std::endl;
+    std::cout << "\t-q or --quiet          be silent, unless errors are found" << std::endl;
+    std::cout << "\t-r or --recursive      recurse subdirectories" << std::endl;
+    std::cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), deflate, shoco }" << std::endl;
+    std::cout << "\t-v or --verbose        show extra info" << std::endl;
     std::cout << std::endl;
     return 0;
 }
@@ -114,93 +111,94 @@ double ratio( const T &A, const U &B ) {
     return ratio;
 }
 
-int PACKING_ALGORITHM = bundle::LZMA;
-
 int main( int argc, const char **argv ) {
     getopt args( argc, argv );
 
-    if( args.size() == 1 ) {
-        head(args[0]);
-        help(args[0]);
-        std::cout << "no files provided" << std::endl;
-        return -1;
-    }
-
-    if( args.has("-?") || args.has("-h") || args.has("--help") ) {
+    if( args.has("-?") || args.has("-h") || args.has("--help") || args.size() <= 3 ) {
         head(args[0]);
         help(args[0]);
         return 0;
     }
 
-    const bool quiet = args.has("-q") || args.has("--quiet");
-    const bool verbose = ( args.has("-v") || args.has("--verbose") ) && !quiet;
-    const bool test = args.has("-t") || args.has("--test");
-    const bool recursive = args.has("-r") || args.has("--recursive");
-    const bool xorit = args.has("-x") || args.has("--xor");
-    const bool packit = args.has("-p") || args.has("--pack");
-    const bool unpackit = args.has("-u") || args.has("--unpack");
-    const bool wrapit = args.has("-w") || args.has("--wrap");
+    const bool moveit = args[1] == "m" || args[1] == "move";
+    const bool packit = args[1] == "p" || args[1] == "pack";
+    const bool testit = args[1] == "t" || args[1] == "test";
+
+    int PACKING_ALGORITHM = bundle::LZMA;
+    const std::string archive = args[2];
+
     const bool flat = args.has("-f") || args.has("--flat");
-    const bool index = args.has("-i") || args.has("--index");
-    const bool move = args.has("-m") || args.has("--move");
-    std::string wrapname;
+    const bool quiet = args.has("-q") || args.has("--quiet");
+    const bool recursive = args.has("-r") || args.has("--recursive");
+    const bool use = args.has("-u") || args.has("--use");
+    const bool verbose = ( args.has("-v") || args.has("--verbose") ) && !quiet;
 
     if( !quiet )
     head(args[0]);
 
+    if( verbose ) {
+        std::cout << "options: ";
+        std::cout << "moveit=" << moveit << ',';
+        std::cout << "packit=" << packit << ',';
+        std::cout << "testit=" << testit << ',';
+        std::cout << "archive=" << archive << ',';
+        std::cout << "flat=" << flat << ',';
+        std::cout << "quiet=" << quiet << ',';
+        std::cout << "recursive=" << recursive << ',';
+        std::cout << "use=" << use << ',';
+        std::cout << "verbose=" << verbose;
+        std::cout << std::endl;
+    }
+
     int numerrors = 0, processed = 0;
     std::uint64_t total_input = 0, total_output = 0;
 
-    if( !xorit && !packit && !unpackit ) {
-        std::cout << "[FAIL] undefined argument. please provide any -x, -p or -u argument. optionally also -w" << std::endl;
+    if( !moveit && !packit && !testit ) {
+        head(args[0]);
+        help(args[0]);
+        std::cout << "No command." << std::endl;
         return -1;
     }
 
-    sao::folder folder;
+    bundle::pak archived;
+    sao::folder to_pack;
 
-    for( int i = 1; args.has(i); ++i ) {
-         if( args[i] == "-v" || args[i] == "--verbose"
-            || args[i] == "-q" || args[i] == "--quiet"
-            || args[i] == "-t" || args[i] == "--test"
-            || args[i] == "-r" || args[i] == "--recursive"
-            || args[i] == "-x" || args[i] == "--xor"
-            || args[i] == "-u" || args[i] == "--unpack"
-            || args[i] == "-f" || args[i] == "--flat"
-            || args[i] == "-i" || args[i] == "--index"
-            || args[i] == "-m" || args[i] == "--move" ) {
+    for( int i = 3; args.has(i); ++i ) {
+        if( args[i] == "-f" || args[i] == "--flat" ||
+            args[i] == "-q" || args[i] == "--quiet" ||
+            args[i] == "-r" || args[i] == "--recursive" ||
+            args[i] == "-v" || args[i] == "--verbose" ) {
             continue;
-         }
-         if( args[i] == "-p" || args[i] == "--pack" ) {
+        }
+        if( args[i] == "-u" || args[i] == "--use" ) {
             if( args.has(++i) ) {
-                /**/ if( args[i].lowercase() == "none" ) PACKING_ALGORITHM = bundle::NONE;
-                else if( args[i].lowercase() == "lz4" ) PACKING_ALGORITHM = bundle::LZ4;
-                else if( args[i].lowercase() == "lzma" ) PACKING_ALGORITHM = bundle::LZMA;
+                /**/ if( args[i].lowercase() == "none" )    PACKING_ALGORITHM = bundle::NONE;
+                else if( args[i].lowercase() == "lz4" )     PACKING_ALGORITHM = bundle::LZ4;
+                else if( args[i].lowercase() == "lzma" )    PACKING_ALGORITHM = bundle::LZMA;
                 else if( args[i].lowercase() == "deflate" ) PACKING_ALGORITHM = bundle::DEFLATE;
-                else if( args[i].lowercase() == "shoco" ) PACKING_ALGORITHM = bundle::SHOCO;
+                else if( args[i].lowercase() == "shoco" )   PACKING_ALGORITHM = bundle::SHOCO;
                 else --i;
+                ++i;
             }
             continue;
-         }
-         if( args[i] == "-w" || args[i] == "--wrap" ) {
-            if( args.has(++i) ) wrapname = args[i];
-            continue;
-         }
+        }
 
-         folder.include( args[i], {"*"}, recursive );
-     }
+        to_pack.include( args[i], {"*"}, recursive );
+    }
 
-    if( folder.empty() ) {
+    if( (packit || moveit) && to_pack.empty() ) {
+        head(args[0]);
+        help(args[0]);
         std::cout << "No files provided." << std::endl;
         return -1;
     }
 
     int progress_pct = 0, progress_idx = 0, appexit = 0;
     std::string title_mode, title_name;
-
     std::thread bubble( [&]() {
         if( !quiet )
         bubble::show( bubble::string() <<
-            "title.text=" << BUNDLER_TEXT " - " << progress_pct << "%;"
+            "title.text=" << BUNDLER_TEXT ";"
             "body.icon=8;"
             "head.text=;"
             "body.text=;"
@@ -208,170 +206,156 @@ int main( int argc, const char **argv ) {
             "progress=0;",
             [&]( bubble::vars &vars ) {
                 vars["head.text"] = title_mode;
-                vars["title.text"] = bubble::string() << BUNDLER_TEXT " - " << progress_pct << "%";
+                vars["title.text"] = std::string() + BUNDLER_TEXT " - " + std::to_string( progress_pct > 100 ? 100 : progress_pct ) + "%";
                 vars["progress"] = progress_pct;
                 vars["body.text"] = title_name;
                 if( appexit ) vars["exit"] = 0;
             }
         );
-    } );
+    } ) ;
 
-    for( auto &file : folder ) {
-
-        progress_pct = (++progress_idx * 100) / folder.size();
-
-        if( file.is_dir() ) {
-            title_name.clear();
-            continue;
-        } else {
-            title_name = file.name();
+    auto readfile = [&]( const std::string &pathfile ) -> std::pair<bool,std::string> {
+        std::stringstream ss;
+        std::ifstream file( pathfile.c_str(), std::ios::binary | std::ios::ate);
+        if( file.good() && !file.tellg() )
+            return std::pair<bool,std::string>( true, std::string() );
+        std::ifstream ifs( pathfile.c_str(), std::ios::binary );
+        if( ifs.good() ) {
+            if( ss << ifs.rdbuf() )
+                return std::pair<bool,std::string>( true, ss.str() );
         }
+        std::cerr << "[FAIL] " << pathfile << ": cannot read file" << std::endl;
+        numerrors ++;
+        return std::pair<bool,std::string>( false, std::string() );
+    };
 
-         std::string pathfile = file.name(), input, output;
+    auto writefile = [&]( const std::string &pathfile, const std::string &data ) -> bool {
+        std::ofstream ofs( pathfile.c_str(), std::ios::binary );
+        if( ofs.good() ) {
+            ofs.write( &data[0], data.size() );
+            if( ofs.good() ) {
+                return true;
+            }
+        }
+        std::cerr << "[FAIL] " << pathfile << ": cannot write to disk" << std::endl;
+        numerrors ++;
+        return false;
+    };
 
-         processed++;
+    auto flatten = []( const std::string &pathfile ) -> std::string {
+        unsigned a = pathfile.find_last_of('/'); a = ( a == std::string::npos ? 0 : a + 1 );
+        unsigned b = pathfile.find_last_of('\\'); b = ( b == std::string::npos ? 0 : b + 1 );
+        return pathfile.substr( a > b ? a : b );
+    };
 
-        {
-            bool ok = false;
-            std::stringstream ss;
-            std::ifstream ifs( pathfile.c_str(), std::ios::binary );
-            if( ifs.good() )
-                if( ss << ifs.rdbuf() )
-                    input = ss.str(), ok = true;
-            if( !ok ) {
-                std::cerr << "[FAIL] " << pathfile << ": cannot read file" << std::endl;
-                numerrors ++;
+    // app starts here
+
+    if( moveit || packit ) {
+        title_mode = std::string() + ( packit ? "pack" : "move" ) + " (" + bundle::name_of(PACKING_ALGORITHM) + ")";
+
+        for( auto &file : to_pack ) {
+            progress_pct = (++progress_idx * 100) / to_pack.size();
+
+            if( file.is_dir() ) {
+                title_name.clear();
+                continue;
+            } else {
+                title_name = file.name();
+            }
+
+            processed++;
+
+            auto pair = readfile( file.name() );
+            const std::string &input = pair.second;
+
+            if( !pair.first ) {
                 continue;
             }
-        }
 
-        /*
-        if( verbose ) {
-            std::cout <<
-            "input {" << std::endl <<
-                "\tis_packed: " << bundle::is_packed( input ) << ',' << std::endl <<
-                "\ttype-of: " << bundle::typeof( input ) << ',' << std::endl <<
-                "\tlen: " << bundle::length( input ) << ',' << std::endl <<
-                "\tz-len: " << bundle::zlength( input ) << ',' << std::endl <<
-            "}" << std::endl;
-        } */
-
-        int packit_ = ( xorit ? bundle::is_packed( input ) ^ true : packit );
-
-        if( packit_ ) {
-            title_mode = ( !xorit ? "pack" : "unpack" );
-            std::cout << "[    ] " << title_mode << ": " << pathfile << " ...\r";
-            output = bundle::pack( PACKING_ALGORITHM, input );
-        } else {
-            title_mode = ( !xorit ? "unpack" : "pack" );
-            output = bundle::unpack( input );
-            std::cout << "[    ] " << title_mode << ": " << pathfile << " ...\r";
-        }
-
-        /*
-        if( verbose ) {
-            std::cout <<
-            "output {" << std::endl <<
-                "\tis_packed: " << bundle::is_packed( output ) << ',' << std::endl <<
-                "\ttype-of: " << bundle::typeof( output ) << ',' << std::endl <<
-                "\tlen: " << bundle::length( output ) << ',' << std::endl <<
-                "\tz-len: " << bundle::zlength( output ) << ',' << std::endl <<
-            "}" << std::endl;
-        } */
-
-        double ratio = ::ratio( input.size(), output.size() );
-        bool skipped = false;
-        bool ok = true;
-
-        if( !test ) {
-
-            if( packit_ && ratio < 5.00 ) {
-                skipped = true;
+            if( !quiet ) {
+                std::cout << "[    ] " << title_mode << ": " << file.name() << " ...\r";
             }
 
-            if( (!packit_) || (!skipped) ) {
-                ok = false;
-                std::ofstream ofs( pathfile.c_str(), std::ios::binary );
-                if( ofs.good() ) {
-                    ofs.write( &output[0], output.size() );
-                    if( ofs.good() ) {
-                        ok = true;
-                    }
-                }
-            }
-        }
+            const std::string output = bundle::pack( PACKING_ALGORITHM, input );
 
-        numerrors += ok ? 0 : 1;
+            double ratio = ::ratio( input.size(), output.size() );
+            bool skipped = ratio < 5.00;
 
-        if( !ok ) {
-            std::cerr << "[FAIL] " << pathfile << ": " << "cannot write to file." << std::endl;
-        } else {
+            archived.push_back( bundle::pakfile() );
+            archived.back()["filename"] = flat ? flatten( file.name() ) : file.name();
+            archived.back()["content"] = skipped ? input : output;
+
             if( !quiet ) {
                 std::string extra = ( skipped ? "(skipped)" : "" );
-                if( packit_ ) {
-                    std::cout << "[ OK ] pack (" << bundle::name_of(PACKING_ALGORITHM) << "): " << pathfile << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
-                } else {
-                    std::cout << "[ OK ] unpack: " << pathfile << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
-                }
+                std::cout << "[ OK ] " << title_mode << ": " << file.name() << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
             }
 
             total_input += input.size();
             total_output += output.size();
         }
-    }
 
-    progress_pct = 101; // show marquee
+        progress_pct = 101; // show marquee
 
-    if( wrapit && !wrapname.empty() ) {
-
-        if( !quiet ) {
-            std::cout << "[ OK ] wrap: building ZIP container..." << std::endl;
-        }
-
-        bundle::pak pak;
-
-        for( auto &file : folder ) {
-            if( file.is_dir() ) continue;
-
-            std::string pathfile = file.name();
-            if( flat ) {
-                unsigned a = pathfile.find_last_of('/'); a = ( a == std::string::npos ? 0 : a + 1 );
-                unsigned b = pathfile.find_last_of('\\'); b = ( b == std::string::npos ? 0 : b + 1 );
-                pathfile = pathfile.substr( a > b ? a : b );
+        if( 0 == numerrors ) {
+            if( !quiet ) {
+                std::cout << "[    ] flushing to disk..." << '\r';
             }
-
-            pak.push_back( bundle::pakfile() );
-            pak.back()["filename"] = pathfile;
-            pak.back()["content"] = file.read();
+            std::cout << ( writefile( archive, archived.bin(bundle::NONE) ) ? "[ OK ] " : "[FAIL] " ) << "flushing to disk..." << std::endl;
         }
 
-        if( index ) {
-            std::cout << "TOC " << pak.toc() << std::endl;
+        if( 0 == numerrors && verbose ) {
+            std::cout << "TOC " << archived.toc() << std::endl;
         }
 
-        if( !test ) {
-            std::ofstream ofs( wrapname, std::ios::binary );
-            ofs << pak.bin(bundle::NONE);
-
-            if( !ofs.good() )
-                numerrors++;
-        }
-
-        if( wrapit && move && !test && 0 == numerrors ) {
-            for( auto &file : folder ) {
+        if( 0 == numerrors && moveit ) {
+            for( auto &file : to_pack ) {
                 bool ok = sao::file( file ).remove();
                 if( !ok ) numerrors ++;
-                if( !ok && !quiet ) std::cout << "[FAIL] cannot delete file: " << file.name() << std::endl;
+                if( !ok ) std::cout << "[FAIL] cannot delete file: " << file.name() << std::endl;
             }
-            if( !quiet ) {
-                std::cout << (numerrors > 0 ? "[FAIL] " : "[ OK ] " ) << "move: " << folder.size() << " files" << std::endl;
+        }
+
+    } else {
+        // testit
+        title_mode = "test";
+
+        {
+            auto result = readfile( archive );
+            if( 0 == numerrors ) {
+                archived.bin( result.second );
             }
+        }
+
+        auto is_ok = []( const std::string &data ) -> bool {
+            if( bundle::is_unpacked(data) )
+                return true;
+            const std::string out = bundle::unpack(data);
+            return out != data;
+        };
+
+        for( auto &file : archived ) {
+
+            progress_pct = (++progress_idx * 100) / archived.size();
+
+            title_name = file["filename"];
+
+            std::cout << "[    ] " << title_mode << ": " << file["filename"] << " ...\r";
+            bool ok = is_ok( file["content"] );
+            std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << title_mode << ": " << file["filename"] << "    \n";
+            numerrors += ok ? 0 : 1;
+
+            processed++;
         }
     }
 
-    if( !quiet ) {
+    bool resume = ( quiet ? ( numerrors > 0 ) : true );
+    if( resume ) {
         std::cout << (numerrors > 0 ? "[FAIL] " : "[ OK ] ");
-        std::cout << processed << " processed files, " << numerrors << " errors; " <<  total_input << " bytes -> " << total_output << " bytes; (" << ratio( total_input, total_output ) << "%)" << std::endl;
+        if( moveit || packit ) {
+            std::cout << processed << " processed files, " << numerrors << " errors; " <<  total_input << " bytes -> " << total_output << " bytes; (" << ratio( total_input, total_output ) << "%)" << std::endl;
+        } else {
+            std::cout << processed << " processed files, " << numerrors << " errors;" << std::endl;
+        }
     }
 
     appexit = 1;
@@ -380,6 +364,6 @@ int main( int argc, const char **argv ) {
     return numerrors;
 }
 
-#include <sao/file.cpp>
+#include <sao/sao.cpp>
 #include <bundle/bundle.cpp>
 #include <bubble/bubble.cpp>

@@ -1,9 +1,11 @@
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <string>
-#include <future>
+#include <thread>
 
 #include <wire/wire.hpp>
 #include <sao/sao.hpp>
@@ -12,13 +14,21 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.3"
+#define BUNDLER_VERSION "1.1.4"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
 #undef  BUNDLER_BUILD
 #define BUNDLER_BUILD "RELEASE"
 #endif
+
+auto now = []() {
+    return std::chrono::steady_clock::now();
+};
+auto then = now();
+auto taken = []() -> double {
+    return std::chrono::duration_cast< std::chrono::milliseconds >( now() - then ).count() / 1000.0;
+};
 
 struct getopt : public std::map< wire::string, wire::string >
 {
@@ -203,6 +213,7 @@ int main( int argc, const char **argv ) {
             "head.text=;"
             "body.text=;"
             "style.minimizable=1;"
+            "style.ontop=1;"
             "progress=0;",
             [&]( bubble::vars &vars ) {
                 vars["head.text"] = title_mode;
@@ -250,8 +261,12 @@ int main( int argc, const char **argv ) {
 
     // app starts here
 
+    std::vector<std::thread> threads;
+
     if( moveit || packit ) {
         title_mode = std::string() + ( packit ? "pack" : "move" ) + " (" + bundle::name_of(PACKING_ALGORITHM) + ")";
+
+        archived.resize( to_pack.size() );
 
         for( auto &file : to_pack ) {
             progress_pct = (++progress_idx * 100) / to_pack.size();
@@ -263,35 +278,46 @@ int main( int argc, const char **argv ) {
                 title_name = file.name();
             }
 
-            processed++;
+            static std::mutex mutex;
 
-            auto pair = readfile( file.name() );
-            const std::string &input = pair.second;
+            threads.emplace_back( [&]( int idx, std::string filename ){
+                auto &with = archived[idx];
 
-            if( !pair.first ) {
-                continue;
+                auto pair = readfile( filename );
+                const std::string &input = pair.second;
+
+                if( !pair.first ) {
+                    return;
+                }
+
+                const std::string output = bundle::pack( PACKING_ALGORITHM, input );
+
+                double ratio = ::ratio( input.size(), output.size() );
+                bool skipped = ratio < 5.00;
+
+                with["filename"] = flat ? flatten( filename ) : filename;
+                with["content"] = skipped ? input : output;
+
+                mutex.lock();
+
+                if( !quiet ) {
+                    std::string extra = ( skipped ? "(skipped)" : "" );
+                    std::cout << "[ OK ] " << title_mode << ": " << filename << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
+                }
+
+                total_input += input.size();
+                total_output += output.size();
+
+                mutex.unlock();
+            }, processed++, file.name() );
+        }
+
+        progress_idx = 0;
+        for( auto &in : threads ) {
+            progress_pct = (++progress_idx * 100) / threads.size();
+            if( in.joinable() ) {
+                in.join();
             }
-
-            if( !quiet ) {
-                std::cout << "[    ] " << title_mode << ": " << file.name() << " ...\r";
-            }
-
-            const std::string output = bundle::pack( PACKING_ALGORITHM, input );
-
-            double ratio = ::ratio( input.size(), output.size() );
-            bool skipped = ratio < 5.00;
-
-            archived.push_back( bundle::pakfile() );
-            archived.back()["filename"] = flat ? flatten( file.name() ) : file.name();
-            archived.back()["content"] = skipped ? input : output;
-
-            if( !quiet ) {
-                std::string extra = ( skipped ? "(skipped)" : "" );
-                std::cout << "[ OK ] " << title_mode << ": " << file.name() << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
-            }
-
-            total_input += input.size();
-            total_output += output.size();
         }
 
         progress_pct = 101; // show marquee
@@ -300,6 +326,7 @@ int main( int argc, const char **argv ) {
             if( !quiet ) {
                 std::cout << "[    ] flushing to disk..." << '\r';
             }
+            archived.resize( processed - 1 );
             std::cout << ( writefile( archive, archived.bin(bundle::NONE) ) ? "[ OK ] " : "[FAIL] " ) << "flushing to disk..." << std::endl;
         }
 
@@ -352,7 +379,7 @@ int main( int argc, const char **argv ) {
     if( resume ) {
         std::cout << (numerrors > 0 ? "[FAIL] " : "[ OK ] ");
         if( moveit || packit ) {
-            std::cout << processed << " processed files, " << numerrors << " errors; " <<  total_input << " bytes -> " << total_output << " bytes; (" << ratio( total_input, total_output ) << "%)" << std::endl;
+            std::cout << processed << " processed files, " << numerrors << " errors; " <<  total_input << " bytes -> " << total_output << " bytes (" << ratio( total_input, total_output ) << "%); " << taken() << " secs" << std::endl;
         } else {
             std::cout << processed << " processed files, " << numerrors << " errors;" << std::endl;
         }

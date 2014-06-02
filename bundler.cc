@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.4"
+#define BUNDLER_VERSION "1.1.41"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -143,8 +143,9 @@ int main( int argc, const char **argv ) {
     const bool use = args.has("-u") || args.has("--use");
     const bool verbose = ( args.has("-v") || args.has("--verbose") ) && !quiet;
 
-    if( !quiet )
-    head(args[0]);
+    if( !quiet ) {
+        head(args[0]);
+    }
 
     if( verbose ) {
         std::cout << "options: ";
@@ -164,7 +165,6 @@ int main( int argc, const char **argv ) {
     std::uint64_t total_input = 0, total_output = 0;
 
     if( !moveit && !packit && !testit ) {
-        head(args[0]);
         help(args[0]);
         std::cout << "No command." << std::endl;
         return -1;
@@ -197,7 +197,6 @@ int main( int argc, const char **argv ) {
     }
 
     if( (packit || moveit) && to_pack.empty() ) {
-        head(args[0]);
         help(args[0]);
         std::cout << "No files provided." << std::endl;
         return -1;
@@ -213,7 +212,7 @@ int main( int argc, const char **argv ) {
             "head.text=;"
             "body.text=;"
             "style.minimizable=1;"
-            "style.ontop=1;"
+//          "style.minimized=1;"
             "progress=0;",
             [&]( bubble::vars &vars ) {
                 vars["head.text"] = title_mode;
@@ -326,7 +325,7 @@ int main( int argc, const char **argv ) {
             if( !quiet ) {
                 std::cout << "[    ] flushing to disk..." << '\r';
             }
-            archived.resize( processed - 1 );
+            archived.resize( processed );
             std::cout << ( writefile( archive, archived.bin(bundle::NONE) ) ? "[ OK ] " : "[FAIL] " ) << "flushing to disk..." << std::endl;
         }
 

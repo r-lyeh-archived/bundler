@@ -5,7 +5,7 @@ A command-line compression tool
 
 ### usage
 ```
-bundler: Bundler 1.1.4 (RELEASE). Compiled on May 30 2014 - https://github.com/r-lyeh/bundler
+bundler: Bundler 1.1.51 (RELEASE). Compiled on Jun  5 2014 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]
@@ -19,7 +19,7 @@ Options:
         -h or --help           this screen
         -q or --quiet          be silent, unless errors are found
         -r or --recursive      recurse subdirectories
-        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), deflate, shoco }
+        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco }
         -v or --verbose        show extra info
 ```
 

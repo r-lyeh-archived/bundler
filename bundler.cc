@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.41"
+#define BUNDLER_VERSION "1.1.51"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -87,29 +87,31 @@ struct getopt : public std::map< wire::string, wire::string >
     }
 };
 
-int head( const std::string &appname ) {
-    std::cout << appname << ": " << BUNDLER_TEXT ". Compiled on " __DATE__ " - " BUNDLER_URL << std::endl;
-    return 0;
+std::string head( const std::string &appname ) {
+    std::stringstream cout;
+    cout << appname << ": " << BUNDLER_TEXT ". Compiled on " __DATE__ " - " BUNDLER_URL;
+    return cout.str();
 }
 
-int help( const wire::string &app ) {
-    std::cout << std::endl;
-    std::cout << "Usage:" << std::endl;
-    std::cout << "\t" << app << " command archive.zip files[...] [options[...]]" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Command:" << std::endl;
-    std::cout << "\tm or move              move files to archive" << std::endl;
-    std::cout << "\tp or pack              pack files into archive" << std::endl;
-    std::cout << "\tt or test              test archive" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
-    std::cout << "\t-h or --help           this screen" << std::endl;
-    std::cout << "\t-q or --quiet          be silent, unless errors are found" << std::endl;
-    std::cout << "\t-r or --recursive      recurse subdirectories" << std::endl;
-    std::cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), deflate, shoco }" << std::endl;
-    std::cout << "\t-v or --verbose        show extra info" << std::endl;
-    std::cout << std::endl;
-    return 0;
+std::string help( const std::string &appname ) {
+    std::stringstream cout;
+    cout << std::endl;
+    cout << "Usage:" << std::endl;
+    cout << "\t" << appname << " command archive.zip files[...] [options[...]]" << std::endl;
+    cout << std::endl;
+    cout << "Command:" << std::endl;
+    cout << "\tm or move              move files to archive" << std::endl;
+    cout << "\tp or pack              pack files into archive" << std::endl;
+    cout << "\tt or test              test archive" << std::endl;
+    cout << "Options:" << std::endl;
+    cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
+    cout << "\t-h or --help           this screen" << std::endl;
+    cout << "\t-q or --quiet          be silent, unless errors are found" << std::endl;
+    cout << "\t-r or --recursive      recurse subdirectories" << std::endl;
+    cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco }" << std::endl;
+    cout << "\t-v or --verbose        show extra info" << std::endl;
+    cout << std::endl;
+    return cout.str();
 }
 
 template<typename T, typename U>
@@ -125,8 +127,17 @@ int main( int argc, const char **argv ) {
     getopt args( argc, argv );
 
     if( args.has("-?") || args.has("-h") || args.has("--help") || args.size() <= 3 ) {
-        head(args[0]);
-        help(args[0]);
+        std::cout << head(args[0]) << std::endl;
+        std::cout << help(args[0]);
+
+        bubble::show( bubble::string() <<
+            "title.text=About;"
+            "body.icon=8;"
+            "head.text=" << BUNDLER_TEXT << ";"
+            "body.text=" << "<a href\a\"" << BUNDLER_URL << "\">" << BUNDLER_URL << "</a>;"
+            "style.minimizable=1;"
+        );
+
         return 0;
     }
 
@@ -134,7 +145,7 @@ int main( int argc, const char **argv ) {
     const bool packit = args[1] == "p" || args[1] == "pack";
     const bool testit = args[1] == "t" || args[1] == "test";
 
-    int PACKING_ALGORITHM = bundle::LZMA;
+    int PACKING_ALGORITHM = bundle::LZMASDK;
     const std::string archive = args[2];
 
     const bool flat = args.has("-f") || args.has("--flat");
@@ -144,7 +155,7 @@ int main( int argc, const char **argv ) {
     const bool verbose = ( args.has("-v") || args.has("--verbose") ) && !quiet;
 
     if( !quiet ) {
-        head(args[0]);
+        std::cout << head(args[0]) << std::endl;
     }
 
     if( verbose ) {
@@ -165,7 +176,7 @@ int main( int argc, const char **argv ) {
     std::uint64_t total_input = 0, total_output = 0;
 
     if( !moveit && !packit && !testit ) {
-        help(args[0]);
+        std::cout << help(args[0]);
         std::cout << "No command." << std::endl;
         return -1;
     }
@@ -184,7 +195,8 @@ int main( int argc, const char **argv ) {
             if( args.has(++i) ) {
                 /**/ if( args[i].lowercase() == "none" )    PACKING_ALGORITHM = bundle::NONE;
                 else if( args[i].lowercase() == "lz4" )     PACKING_ALGORITHM = bundle::LZ4;
-                else if( args[i].lowercase() == "lzma" )    PACKING_ALGORITHM = bundle::LZMA;
+                else if( args[i].lowercase() == "lzma" )    PACKING_ALGORITHM = bundle::LZMASDK;
+                else if( args[i].lowercase() == "lzip" )    PACKING_ALGORITHM = bundle::LZIP;
                 else if( args[i].lowercase() == "deflate" ) PACKING_ALGORITHM = bundle::DEFLATE;
                 else if( args[i].lowercase() == "shoco" )   PACKING_ALGORITHM = bundle::SHOCO;
                 else --i;
@@ -197,7 +209,7 @@ int main( int argc, const char **argv ) {
     }
 
     if( (packit || moveit) && to_pack.empty() ) {
-        help(args[0]);
+        std::cout << help(args[0]);
         std::cout << "No files provided." << std::endl;
         return -1;
     }

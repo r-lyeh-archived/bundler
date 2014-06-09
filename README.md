@@ -5,21 +5,22 @@ A command-line compression tool
 
 ### usage
 ```
-bundler: Bundler 1.1.51 (RELEASE). Compiled on Jun  5 2014 - https://github.com/r-lyeh/bundler
+bundler: Bundler 1.1.6 (RELEASE). Compiled on Jun  9 2014 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]
 
 Command:
+        a or add               pack files into archive
+        p or pack              pack files into archive (same than above)
         m or move              move files to archive
-        p or pack              pack files into archive
         t or test              test archive
 Options:
         -f or --flat           discard path filename information, if using --pack or --move
         -h or --help           this screen
         -q or --quiet          be silent, unless errors are found
         -r or --recursive      recurse subdirectories
-        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco }
+        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq }
         -v or --verbose        show extra info
 ```
 

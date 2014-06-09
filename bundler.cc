@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.51"
+#define BUNDLER_VERSION "1.1.6"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -100,15 +100,16 @@ std::string help( const std::string &appname ) {
     cout << "\t" << appname << " command archive.zip files[...] [options[...]]" << std::endl;
     cout << std::endl;
     cout << "Command:" << std::endl;
+    cout << "\ta or add               pack files into archive" << std::endl;
+    cout << "\tp or pack              pack files into archive (same than above)" << std::endl;
     cout << "\tm or move              move files to archive" << std::endl;
-    cout << "\tp or pack              pack files into archive" << std::endl;
     cout << "\tt or test              test archive" << std::endl;
     cout << "Options:" << std::endl;
     cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
     cout << "\t-h or --help           this screen" << std::endl;
     cout << "\t-q or --quiet          be silent, unless errors are found" << std::endl;
     cout << "\t-r or --recursive      recurse subdirectories" << std::endl;
-    cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco }" << std::endl;
+    cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq }" << std::endl;
     cout << "\t-v or --verbose        show extra info" << std::endl;
     cout << std::endl;
     return cout.str();
@@ -142,7 +143,7 @@ int main( int argc, const char **argv ) {
     }
 
     const bool moveit = args[1] == "m" || args[1] == "move";
-    const bool packit = args[1] == "p" || args[1] == "pack";
+    const bool packit = args[1] == "p" || args[1] == "pack" || args[1] == "a" || args[1] == "add";
     const bool testit = args[1] == "t" || args[1] == "test";
 
     int PACKING_ALGORITHM = bundle::LZMASDK;
@@ -199,6 +200,7 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "lzip" )    PACKING_ALGORITHM = bundle::LZIP;
                 else if( args[i].lowercase() == "deflate" ) PACKING_ALGORITHM = bundle::DEFLATE;
                 else if( args[i].lowercase() == "shoco" )   PACKING_ALGORITHM = bundle::SHOCO;
+                else if( args[i].lowercase() == "zpaq" )    PACKING_ALGORITHM = bundle::ZPAQ;
                 else --i;
                 ++i;
             }
@@ -321,6 +323,12 @@ int main( int argc, const char **argv ) {
 
                 mutex.unlock();
             }, processed++, file.name() );
+
+            if( PACKING_ALGORITHM == bundle::ZPAQ ) {
+                if( threads.back().joinable() ) {
+                    threads.back().join();
+                }
+            }
         }
 
         progress_idx = 0;
@@ -338,7 +346,10 @@ int main( int argc, const char **argv ) {
                 std::cout << "[    ] flushing to disk..." << '\r';
             }
             archived.resize( processed );
-            std::cout << ( writefile( archive, archived.bin(bundle::NONE) ) ? "[ OK ] " : "[FAIL] " ) << "flushing to disk..." << std::endl;
+            bool ok = writefile( archive, archived.bin(bundle::NONE) );
+            if( !quiet ) {
+                std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << "flushing to disk..." << std::endl;
+            }
         }
 
         if( 0 == numerrors && verbose ) {

@@ -1,3 +1,8 @@
+#include <wire/wire.hpp>
+#include <sao/sao.hpp>
+#include <bubble/bubble.hpp>
+#include <bundle/bundle.hpp>
+
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -7,14 +12,9 @@
 #include <string>
 #include <thread>
 
-#include <wire/wire.hpp>
-#include <sao/sao.hpp>
-#include <bundle/bundle.hpp>
-#include <bubble/bubble.hpp>
-
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.6"
+#define BUNDLER_VERSION "1.1.71"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -109,7 +109,7 @@ std::string help( const std::string &appname ) {
     cout << "\t-h or --help           this screen" << std::endl;
     cout << "\t-q or --quiet          be silent, unless errors are found" << std::endl;
     cout << "\t-r or --recursive      recurse subdirectories" << std::endl;
-    cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq }" << std::endl;
+    cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc }" << std::endl;
     cout << "\t-v or --verbose        show extra info" << std::endl;
     cout << std::endl;
     return cout.str();
@@ -201,6 +201,7 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "deflate" ) PACKING_ALGORITHM = bundle::DEFLATE;
                 else if( args[i].lowercase() == "shoco" )   PACKING_ALGORITHM = bundle::SHOCO;
                 else if( args[i].lowercase() == "zpaq" )    PACKING_ALGORITHM = bundle::ZPAQ;
+                else if( args[i].lowercase() == "lz4hc" )   PACKING_ALGORITHM = bundle::LZ4HC;
                 else --i;
                 ++i;
             }
@@ -414,5 +415,5 @@ int main( int argc, const char **argv ) {
 }
 
 #include <sao/sao.cpp>
-#include <bundle/bundle.cpp>
 #include <bubble/bubble.cpp>
+#include <bundle/bundle.cpp>

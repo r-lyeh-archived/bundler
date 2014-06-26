@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.71"
+#define BUNDLER_VERSION "1.1.8"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -103,6 +103,7 @@ std::string help( const std::string &appname ) {
     cout << "\ta or add               pack files into archive" << std::endl;
     cout << "\tp or pack              pack files into archive (same than above)" << std::endl;
     cout << "\tm or move              move files to archive" << std::endl;
+    cout << "\tx or extract           extract archive" << std::endl;
     cout << "\tt or test              test archive" << std::endl;
     cout << "Options:" << std::endl;
     cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
@@ -145,6 +146,7 @@ int main( int argc, const char **argv ) {
     const bool moveit = args[1] == "m" || args[1] == "move";
     const bool packit = args[1] == "p" || args[1] == "pack" || args[1] == "a" || args[1] == "add";
     const bool testit = args[1] == "t" || args[1] == "test";
+    const bool xtrcit = args[1] == "x" || args[1] == "extract";
 
     int PACKING_ALGORITHM = bundle::LZMASDK;
     const std::string archive = args[2];
@@ -164,6 +166,7 @@ int main( int argc, const char **argv ) {
         std::cout << "moveit=" << moveit << ',';
         std::cout << "packit=" << packit << ',';
         std::cout << "testit=" << testit << ',';
+        std::cout << "xtrcit=" << xtrcit << ',';
         std::cout << "archive=" << archive << ',';
         std::cout << "flat=" << flat << ',';
         std::cout << "quiet=" << quiet << ',';
@@ -176,7 +179,7 @@ int main( int argc, const char **argv ) {
     int numerrors = 0, processed = 0;
     std::uint64_t total_input = 0, total_output = 0;
 
-    if( !moveit && !packit && !testit ) {
+    if( !moveit && !packit && !testit && !xtrcit ) {
         std::cout << help(args[0]);
         std::cout << "No command." << std::endl;
         return -1;
@@ -211,7 +214,7 @@ int main( int argc, const char **argv ) {
         to_pack.include( args[i], {"*"}, recursive );
     }
 
-    if( (packit || moveit) && to_pack.empty() ) {
+    if( (packit || moveit || xtrcit) && to_pack.empty() ) {
         std::cout << help(args[0]);
         std::cout << "No files provided." << std::endl;
         return -1;
@@ -366,8 +369,8 @@ int main( int argc, const char **argv ) {
         }
 
     } else {
-        // testit
-        title_mode = "test";
+        // testit or extractit
+        title_mode = testit ? "test" : "extract";
 
         {
             auto result = readfile( archive );
@@ -376,21 +379,43 @@ int main( int argc, const char **argv ) {
             }
         }
 
-        auto is_ok = []( const std::string &data ) -> bool {
-            if( bundle::is_unpacked(data) )
+        auto is_ok = []( std::string &output, const std::string &input ) -> bool {
+            if( bundle::is_packed( input ) ) {
+                return bundle::unpack(output, input);
+            } else {
                 return true;
-            const std::string out = bundle::unpack(data);
-            return out != data;
+            }
         };
 
         for( auto &file : archived ) {
-
             progress_pct = (++progress_idx * 100) / archived.size();
+
+            bool found = false;
+            for( auto &m : to_pack ) {
+                if( wire::string( file["filename"] ).matches( m.name() ) ) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if( !found ) {
+                continue;
+            }
 
             title_name = file["filename"];
 
             std::cout << "[    ] " << title_mode << ": " << file["filename"] << " ...\r";
-            bool ok = is_ok( file["content"] );
+
+            std::string uncmp;
+            bool ok = is_ok( uncmp, file["content"] );
+            if( testit ) {
+                // ...
+            } else {
+                /* @todo - mkfolders() */
+                std::ofstream ofs( file["filename"].c_str(), std::ios::binary );
+                ofs << uncmp;
+            }
+
             std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << title_mode << ": " << file["filename"] << "    \n";
             numerrors += ok ? 0 : 1;
 

@@ -5,7 +5,7 @@ A command-line compression tool
 
 ### usage
 ```
-bundler: Bundler 1.1.71 (RELEASE). Compiled on Jun 23 2014 - https://github.com/r-lyeh/bundler
+bundler: Bundler 1.1.8 (RELEASE). Compiled on Jun 26 2014 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]

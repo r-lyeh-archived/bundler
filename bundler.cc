@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.8"
+#define BUNDLER_VERSION "1.1.81"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -105,6 +105,7 @@ std::string help( const std::string &appname ) {
     cout << "\tm or move              move files to archive" << std::endl;
     cout << "\tx or extract           extract archive" << std::endl;
     cout << "\tt or test              test archive" << std::endl;
+    cout << "\tl or list              list archive" << std::endl;
     cout << "Options:" << std::endl;
     cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
     cout << "\t-h or --help           this screen" << std::endl;
@@ -147,6 +148,7 @@ int main( int argc, const char **argv ) {
     const bool packit = args[1] == "p" || args[1] == "pack" || args[1] == "a" || args[1] == "add";
     const bool testit = args[1] == "t" || args[1] == "test";
     const bool xtrcit = args[1] == "x" || args[1] == "extract";
+    const bool listit = args[1] == "l" || args[1] == "list";
 
     int PACKING_ALGORITHM = bundle::LZMASDK;
     const std::string archive = args[2];
@@ -179,7 +181,7 @@ int main( int argc, const char **argv ) {
     int numerrors = 0, processed = 0;
     std::uint64_t total_input = 0, total_output = 0;
 
-    if( !moveit && !packit && !testit && !xtrcit ) {
+    if( !moveit && !packit && !testit && !xtrcit && !listit ) {
         std::cout << help(args[0]);
         std::cout << "No command." << std::endl;
         return -1;
@@ -214,7 +216,7 @@ int main( int argc, const char **argv ) {
         to_pack.include( args[i], {"*"}, recursive );
     }
 
-    if( (packit || moveit || xtrcit) && to_pack.empty() ) {
+    if( (packit || moveit) && to_pack.empty() ) {
         std::cout << help(args[0]);
         std::cout << "No files provided." << std::endl;
         return -1;
@@ -369,8 +371,8 @@ int main( int argc, const char **argv ) {
         }
 
     } else {
-        // testit or extractit
-        title_mode = testit ? "test" : "extract";
+        // testit, listit or extractit
+        title_mode = listit ? "list" : (testit ? "test" : "extract");
 
         {
             auto result = readfile( archive );
@@ -387,9 +389,14 @@ int main( int argc, const char **argv ) {
             }
         };
 
+        if( listit ) {
+            std::cout << archived.toc() << std::endl;
+        }
+
         for( auto &file : archived ) {
             progress_pct = (++progress_idx * 100) / archived.size();
 
+#if 0
             bool found = false;
             for( auto &m : to_pack ) {
                 if( wire::string( file["filename"] ).matches( m.name() ) ) {
@@ -401,6 +408,7 @@ int main( int argc, const char **argv ) {
             if( !found ) {
                 continue;
             }
+#endif
 
             title_name = file["filename"];
 
@@ -408,7 +416,7 @@ int main( int argc, const char **argv ) {
 
             std::string uncmp;
             bool ok = is_ok( uncmp, file["content"] );
-            if( testit ) {
+            if( testit || listit ) {
                 // ...
             } else {
                 /* @todo - mkfolders() */

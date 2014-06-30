@@ -1,11 +1,11 @@
 bundler
 =======
 
-A command-line compression tool
+A command-line compression tool that uses [bundle compression suite](https://github.com/r-lyeh/bundle).
 
 ### usage
 ```
-bundler: Bundler 1.1.81 (RELEASE). Compiled on Jun 27 2014 - https://github.com/r-lyeh/bundler
+bundler: Bundler 1.1.82 (RELEASE). Compiled on Jun 30 2014 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]

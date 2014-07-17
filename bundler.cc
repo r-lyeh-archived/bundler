@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.82"
+#define BUNDLER_VERSION "1.1.83"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -385,7 +385,7 @@ int main( int argc, const char **argv ) {
             if( bundle::is_packed( input ) ) {
                 return bundle::unpack(output, input);
             } else {
-                return true;
+                return bundle::unpack(output, input), true;
             }
         };
 

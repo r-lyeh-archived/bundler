@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.83"
+#define BUNDLER_VERSION "1.1.84"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -281,6 +281,15 @@ int main( int argc, const char **argv ) {
     // app starts here
 
     std::vector<std::thread> threads;
+    auto wait_for_threads = [&]() {
+        for( auto &in : threads ) {
+            if( in.joinable() ) {
+                in.join();
+            }
+        }
+    };
+
+    progress_idx = 0;
 
     if( moveit || packit ) {
         title_mode = std::string() + ( packit ? "pack" : "move" ) + " (" + bundle::name_of(PACKING_ALGORITHM) + ")";
@@ -335,16 +344,14 @@ int main( int argc, const char **argv ) {
                     threads.back().join();
                 }
             }
-        }
 
-        progress_idx = 0;
-        for( auto &in : threads ) {
-            progress_pct = (++progress_idx * 100) / threads.size();
-            if( in.joinable() ) {
-                in.join();
+            if( threads.size() > 16 ) {
+                wait_for_threads();
+                threads.clear();
             }
         }
 
+        wait_for_threads();
         progress_pct = 101; // show marquee
 
         if( 0 == numerrors ) {

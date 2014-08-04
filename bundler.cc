@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.84"
+#define BUNDLER_VERSION "1.1.85"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -175,6 +175,12 @@ int main( int argc, const char **argv ) {
         std::cout << "recursive=" << recursive << ',';
         std::cout << "use=" << use << ',';
         std::cout << "verbose=" << verbose;
+        /*
+        std::cout << "args=";
+        for( auto &arg : args ) {
+            std::cout << arg.first << ' ';
+        }
+        */
         std::cout << std::endl;
     }
 
@@ -309,6 +315,7 @@ int main( int argc, const char **argv ) {
             static std::mutex mutex;
 
             threads.emplace_back( [&]( int idx, std::string filename ){
+
                 auto &with = archived[idx];
 
                 auto pair = readfile( filename );

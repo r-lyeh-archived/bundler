@@ -5,7 +5,7 @@ A command-line compression tool that uses [bundle compression suite](https://git
 
 ### usage
 ```
-bundler: Bundler 1.1.85 (RELEASE). Compiled on Ago 04 2014 - https://github.com/r-lyeh/bundler
+bundler: Bundler 1.1.86 (RELEASE). Compiled on Nov 18 2014 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]
@@ -22,12 +22,12 @@ Options:
         -h or --help           this screen
         -q or --quiet          be silent, unless errors are found
         -r or --recursive      recurse subdirectories
-        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq }
+        -u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, brotli }
         -v or --verbose        show extra info
 ```
 
 ### build
 ```
 echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /EHsc /link setargv.obj && mt.exe -manifest bundler.exe.manifest -outputresource:bundler.exe;1
-echo mac osx && clang++ bundler.cc -obundler.mac -I deps -O3 -DNDEBUG --std=c++11
+echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++11
 ```

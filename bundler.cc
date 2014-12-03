@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.87"
+#define BUNDLER_VERSION "1.1.88"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -112,23 +112,12 @@ std::string help( const std::string &appname ) {
     cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold. default is 95 (percent)" << std::endl;
     cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
     cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
-    cout << "\t-u or --use ALGORITHM          use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }" << std::endl;
+    cout << "\t-t or --threads NUM            maximum number of parallel threads (defaults to 8)" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }" << std::endl;
     cout << "\t-v or --verbose                show extra info" << std::endl;
     cout << std::endl;
     return cout.str();
 }
-
-/*
-// some benchmarks
-auto data = measures( original );
-for( auto &in : data ) {
-    std::cout << in.str() << std::endl;
-}
-
-std::cout << "fastest decompressor: " << name_of( find_fastest_decompressor(data) ) << std::endl;
-std::cout << "fastest compressor: " << name_of( find_fastest_compressor(data) ) << std::endl;
-std::cout << "smallest compressor: " << name_of( find_smallest_compressor(data) ) << std::endl;
-*/
 
 template<typename T, typename U>
 double ratio( const T &A, const U &B ) {
@@ -163,8 +152,9 @@ int main( int argc, const char **argv ) {
     const bool xtrcit = args[1] == "x" || args[1] == "extract";
     const bool listit = args[1] == "l" || args[1] == "list";
 
-    int PACKING_ALGORITHM = bundle::LZMASDK;
+    std::vector<unsigned> encoders;
     const std::string archive = args[2];
+    unsigned max_threads = 8;
 
     const bool flat = args.has("-f") || args.has("--flat");
     const bool quiet = args.has("-q") || args.has("--quiet");
@@ -218,6 +208,12 @@ int main( int argc, const char **argv ) {
             args[i] == "-v" || args[i] == "--verbose" ) {
             continue;
         }
+        if( args[i] == "-t" || args[i] == "--threads" ) {
+            if( args.has(++i) ) {
+                max_threads = args[i].as<unsigned>();
+            }
+            continue;
+        }        
         if( args[i] == "-i" || args[i] == "--ignore" ) {
             if( args.has(++i) ) {
                 treshold = args[i].as<double>();
@@ -226,22 +222,26 @@ int main( int argc, const char **argv ) {
         }        
         if( args[i] == "-u" || args[i] == "--use" ) {
             if( args.has(++i) ) {
-                /**/ if( args[i].lowercase() == "none" )    PACKING_ALGORITHM = bundle::NONE;
-                else if( args[i].lowercase() == "lz4" )     PACKING_ALGORITHM = bundle::LZ4;
-                else if( args[i].lowercase() == "lzma" )    PACKING_ALGORITHM = bundle::LZMASDK;
-                else if( args[i].lowercase() == "lzip" )    PACKING_ALGORITHM = bundle::LZIP;
-                else if( args[i].lowercase() == "deflate" ) PACKING_ALGORITHM = bundle::DEFLATE;
-                else if( args[i].lowercase() == "shoco" )   PACKING_ALGORITHM = bundle::SHOCO;
-                else if( args[i].lowercase() == "zpaq" )    PACKING_ALGORITHM = bundle::ZPAQ;
-                else if( args[i].lowercase() == "lz4hc" )   PACKING_ALGORITHM = bundle::LZ4HC;
-                else if( args[i].lowercase() == "brotli" )  PACKING_ALGORITHM = bundle::BROTLI;
+                /**/ if( args[i].lowercase() == "none" )    encoders.push_back( bundle::NONE );
+                else if( args[i].lowercase() == "lz4" )     encoders.push_back( bundle::LZ4 );
+                else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMASDK );
+                else if( args[i].lowercase() == "lzip" )    encoders.push_back( bundle::LZIP );
+                else if( args[i].lowercase() == "deflate" ) encoders.push_back( bundle::DEFLATE );
+                else if( args[i].lowercase() == "shoco" )   encoders.push_back( bundle::SHOCO );
+                else if( args[i].lowercase() == "zpaq" )    encoders.push_back( bundle::ZPAQ );
+                else if( args[i].lowercase() == "lz4hc" )   encoders.push_back( bundle::LZ4HC );
+                else if( args[i].lowercase() == "brotli" )  encoders.push_back( bundle::BROTLI );
                 else --i;
-                ++i;
+//                ++i;
             }
             continue;
         }
 
         to_pack.include( args[i], {"*"}, recursive );
+    }
+
+    if( encoders.empty() ) {
+        encoders.push_back( bundle::LZMASDK );
     }
 
     if( (packit || moveit) && to_pack.empty() ) {
@@ -306,6 +306,14 @@ int main( int argc, const char **argv ) {
         return pathfile.substr( a > b ? a : b );
     };
 
+    auto normalize = []( std::string pathfile ) -> std::string {
+        for( auto &p : pathfile ) {
+            if( p == '\\' ) p = '/';
+            if( p == ':' ) p = '/';
+        }
+        return pathfile.size() && pathfile[0] == '/' ? pathfile.substr(1) : pathfile;
+    };
+
     // app starts here
 
     std::vector<std::thread> threads;
@@ -320,7 +328,18 @@ int main( int argc, const char **argv ) {
     progress_idx = 0;
 
     if( moveit || packit ) {
-        title_mode = std::string() + ( packit ? "pack" : "move" ) + " (" + bundle::name_of(PACKING_ALGORITHM) + ")";
+
+        bool single_thread = false;
+        for( auto &PACKING_ALGORITHM : encoders ) {
+            if( PACKING_ALGORITHM == bundle::ZPAQ /* || PACKING_ALGORITHM == bundle::BROTLI */ ) {
+                single_thread = true;
+            }                
+        }
+
+        std::string algorithms;
+        for( auto &u : encoders ) { algorithms += std::string( bundle::name_of(u) ) + ","; }
+        if( algorithms.size() ) algorithms.pop_back();
+        title_mode = std::string() + ( packit ? "pack" : "move" ) + " (" + algorithms + ")";
 
         archived.resize( to_pack.size() );
 
@@ -347,34 +366,42 @@ int main( int argc, const char **argv ) {
                     return;
                 }
 
-                const std::string output = bundle::pack( PACKING_ALGORITHM, input );
+                auto measures = bundle::measures( input, encoders );
+
+                auto slot1 = bundle::find_slot_for_smallest_compressor( measures, 100.00 - treshold ); // for_fastest_decompressor
+                auto slot2 = bundle::find_slot_for_fastest_decompressor( measures );
+                bool skipped = (slot1 == ~0);
+
+                const std::string &output = skipped ? input : measures[ slot1 ].packed;
 
                 double ratio = ::ratio( input.size(), output.size() );
-                bool skipped = ratio >= treshold;
+                bool ignored = ratio >= treshold;
 
-                with["filename"] = flat ? flatten( filename ) : filename;
-                with["content"] = skipped ? input : output;
+                bool valid = !skipped && !ignored;
+
+                with["filename"] = flat ? flatten( normalize(filename) ) : normalize(filename);
+                with["content"] = valid ? output : input;
 
                 mutex.lock();
 
                 if( !quiet ) {
-                    std::string extra = ( skipped ? "(skipped)" : "" );
-                    std::cout << "[ OK ] " << title_mode << ": " << filename << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%)" << extra << std::endl;
+                    std::string extra = ( valid ? bundle::name_of( measures[ slot1 ].packed ) : "skipped" );
+                    std::cout << "[ OK ] " << title_mode << ": " << filename << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%) (" << extra << ")" << std::endl;
                 }
 
                 total_input += input.size();
-                total_output += skipped ? input.size() : output.size();
+                total_output += valid ? output.size() : input.size();
 
                 mutex.unlock();
             }, processed++, file.name() );
 
-            if( PACKING_ALGORITHM == bundle::ZPAQ ) {
+            if( single_thread ) {
                 if( threads.back().joinable() ) {
                     threads.back().join();
                 }
             }
 
-            if( threads.size() > 16 ) {
+            if( threads.size() > max_threads ) {
                 wait_for_threads();
                 threads.clear();
             }

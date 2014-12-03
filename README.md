@@ -5,10 +5,10 @@ A command-line compression tool that uses [bundle compression suite](https://git
 
 ### usage
 ```
-bundler: Bundler 1.1.87 (RELEASE). Compiled on Dec  3 2014 - https://github.com/r-lyeh/bundler
+bundler.exe: Bundler 1.1.88 (RELEASE). Compiled on Dec  3 2014 - https://github.com/r-lyeh/bundler
 
 Usage:
-        bundler command archive.zip files[...] [options[...]]
+        bundler.exe command archive.zip files[...] [options[...]]
 
 Command:
         a or add                       pack files into archive
@@ -23,7 +23,8 @@ Options:
         -i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold. default is 95 (percent)
         -q or --quiet                  be silent, unless errors are found
         -r or --recursive              recurse subdirectories
-        -u or --use ALGORITHM          use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }
+        -t or --threads NUM            maximum number of parallel threads (defaults to 8)
+        -u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }
         -v or --verbose                show extra info
 ```
 

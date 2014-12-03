@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.86"
+#define BUNDLER_VERSION "1.1.87"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -100,29 +100,42 @@ std::string help( const std::string &appname ) {
     cout << "\t" << appname << " command archive.zip files[...] [options[...]]" << std::endl;
     cout << std::endl;
     cout << "Command:" << std::endl;
-    cout << "\ta or add               pack files into archive" << std::endl;
-    cout << "\tp or pack              pack files into archive (same than above)" << std::endl;
-    cout << "\tm or move              move files to archive" << std::endl;
-    cout << "\tx or extract           extract archive" << std::endl;
-    cout << "\tt or test              test archive" << std::endl;
-    cout << "\tl or list              list archive" << std::endl;
+    cout << "\ta or add                       pack files into archive" << std::endl;
+    cout << "\tp or pack                      pack files into archive (same than above)" << std::endl;
+    cout << "\tm or move                      move files to archive" << std::endl;
+    cout << "\tx or extract                   extract archive" << std::endl;
+    cout << "\tt or test                      test archive" << std::endl;
+    cout << "\tl or list                      list archive" << std::endl;
     cout << "Options:" << std::endl;
-    cout << "\t-f or --flat           discard path filename information, if using --pack or --move" << std::endl;
-    cout << "\t-h or --help           this screen" << std::endl;
-    cout << "\t-q or --quiet          be silent, unless errors are found" << std::endl;
-    cout << "\t-r or --recursive      recurse subdirectories" << std::endl;
-    cout << "\t-u or --use ALGORITHM  use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }" << std::endl;
-    cout << "\t-v or --verbose        show extra info" << std::endl;
+    cout << "\t-f or --flat                   discard path filename information, if using --pack or --move" << std::endl;
+    cout << "\t-h or --help                   this screen" << std::endl;
+    cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold. default is 95 (percent)" << std::endl;
+    cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
+    cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
+    cout << "\t-u or --use ALGORITHM          use compression algorithm = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }" << std::endl;
+    cout << "\t-v or --verbose                show extra info" << std::endl;
     cout << std::endl;
     return cout.str();
 }
+
+/*
+// some benchmarks
+auto data = measures( original );
+for( auto &in : data ) {
+    std::cout << in.str() << std::endl;
+}
+
+std::cout << "fastest decompressor: " << name_of( find_fastest_decompressor(data) ) << std::endl;
+std::cout << "fastest compressor: " << name_of( find_fastest_compressor(data) ) << std::endl;
+std::cout << "smallest compressor: " << name_of( find_smallest_compressor(data) ) << std::endl;
+*/
 
 template<typename T, typename U>
 double ratio( const T &A, const U &B ) {
     if( A <= 0 || B <= 0 ) return 0;
     double min = ( A <  B ? double(A) : double(B) );
     double max = ( A >= B ? double(A) : double(B) );
-    double ratio = 100 - ( (100 * min) / max );
+    double ratio = (100 * min) / max;
     return ratio;
 }
 
@@ -158,6 +171,7 @@ int main( int argc, const char **argv ) {
     const bool recursive = args.has("-r") || args.has("--recursive");
     const bool use = args.has("-u") || args.has("--use");
     const bool verbose = ( args.has("-v") || args.has("--verbose") ) && !quiet;
+    double treshold = 95.00;
 
     if( !quiet ) {
         std::cout << head(args[0]) << std::endl;
@@ -174,7 +188,8 @@ int main( int argc, const char **argv ) {
         std::cout << "quiet=" << quiet << ',';
         std::cout << "recursive=" << recursive << ',';
         std::cout << "use=" << use << ',';
-        std::cout << "verbose=" << verbose;
+        std::cout << "verbose=" << verbose << ',';
+        std::cout << "treshold=" << treshold;
         /*
         std::cout << "args=";
         for( auto &arg : args ) {
@@ -203,6 +218,12 @@ int main( int argc, const char **argv ) {
             args[i] == "-v" || args[i] == "--verbose" ) {
             continue;
         }
+        if( args[i] == "-i" || args[i] == "--ignore" ) {
+            if( args.has(++i) ) {
+                treshold = args[i].as<double>();
+            }
+            continue;
+        }        
         if( args[i] == "-u" || args[i] == "--use" ) {
             if( args.has(++i) ) {
                 /**/ if( args[i].lowercase() == "none" )    PACKING_ALGORITHM = bundle::NONE;
@@ -329,7 +350,7 @@ int main( int argc, const char **argv ) {
                 const std::string output = bundle::pack( PACKING_ALGORITHM, input );
 
                 double ratio = ::ratio( input.size(), output.size() );
-                bool skipped = ratio < 5.00;
+                bool skipped = ratio >= treshold;
 
                 with["filename"] = flat ? flatten( filename ) : filename;
                 with["content"] = skipped ? input : output;
@@ -342,7 +363,7 @@ int main( int argc, const char **argv ) {
                 }
 
                 total_input += input.size();
-                total_output += output.size();
+                total_output += skipped ? input.size() : output.size();
 
                 mutex.unlock();
             }, processed++, file.name() );

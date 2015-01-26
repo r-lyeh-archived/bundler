@@ -4,11 +4,11 @@ bundler
 A command-line compression tool that uses [bundle compression suite](https://github.com/r-lyeh/bundle).
 
 ### usage
-```
-bundler.exe: Bundler 1.1.88 (RELEASE). Compiled on Dec  3 2014 - https://github.com/r-lyeh/bundler
+```c++
+bundler: Bundler 1.1.89 (RELEASE). Compiled on Jan 26 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
-        bundler.exe command archive.zip files[...] [options[...]]
+        bundler command archive.zip files[...] [options[...]]
 
 Command:
         a or add                       pack files into archive

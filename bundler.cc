@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "1.1.89"
+#define BUNDLER_VERSION "2.0.0"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -113,9 +113,12 @@ std::string help( const std::string &appname ) {
     cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
     cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
     cout << "\t-t or --threads NUM            maximum number of parallel threads (defaults to 8)" << std::endl;
-    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)" << std::endl;
     cout << "\t-v or --verbose                show extra info" << std::endl;
     cout << std::endl;
+    cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
+    cout << std::endl;
+
     return cout.str();
 }
 
@@ -198,7 +201,7 @@ int main( int argc, const char **argv ) {
         return -1;
     }
 
-    bundle::pak archived;
+    bundle::archive archived;
     sao::folder to_pack;
 
     for( int i = 3; args.has(i); ++i ) {
@@ -231,6 +234,7 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "zpaq" )    encoders.push_back( bundle::ZPAQ );
                 else if( args[i].lowercase() == "lz4hc" )   encoders.push_back( bundle::LZ4HC );
                 else if( args[i].lowercase() == "brotli" )  encoders.push_back( bundle::BROTLI );
+                else if( args[i].lowercase() == "zstd" )    encoders.push_back( bundle::ZSTD );
                 else --i;
 //                ++i;
             }
@@ -331,7 +335,7 @@ int main( int argc, const char **argv ) {
 
         bool single_thread = false;
         for( auto &PACKING_ALGORITHM : encoders ) {
-            if( PACKING_ALGORITHM == bundle::ZPAQ /* || PACKING_ALGORITHM == bundle::BROTLI */ ) {
+            if( PACKING_ALGORITHM == bundle::ZPAQ || PACKING_ALGORITHM == bundle::BROTLI ) {
                 single_thread = true;
             }                
         }

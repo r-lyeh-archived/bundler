@@ -5,7 +5,7 @@ A command-line compression tool that uses [bundle compression suite](https://git
 
 ### usage
 ```c++
-bundler: Bundler 1.1.89 (RELEASE). Compiled on Jan 26 2015 - https://github.com/r-lyeh/bundler
+bundler: Bundler 2.0.0 (RELEASE). Compiled on Jan 28 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]
@@ -24,8 +24,10 @@ Options:
         -q or --quiet                  be silent, unless errors are found
         -r or --recursive              recurse subdirectories
         -t or --threads NUM            maximum number of parallel threads (defaults to 8)
-        -u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli }
+        -u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)
         -v or --verbose                show extra info
+
+        (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
 
 ### build

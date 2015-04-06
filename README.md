@@ -5,10 +5,11 @@ A command-line compression tool that uses [bundle compression suite](https://git
 
 ### usage
 ```c++
-bundler: Bundler 2.0.0 (RELEASE). Compiled on Jan 28 2015 - https://github.com/r-lyeh/bundler
+bundler: Bundler 2.0.1 (RELEASE). Compiled on Apr  6 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]
+        bundler command archive.zip @filelist.txt[...] [options[...]]
 
 Command:
         a or add                       pack files into archive

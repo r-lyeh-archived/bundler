@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "2.0.0"
+#define BUNDLER_VERSION "2.0.1"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -98,6 +98,7 @@ std::string help( const std::string &appname ) {
     cout << std::endl;
     cout << "Usage:" << std::endl;
     cout << "\t" << appname << " command archive.zip files[...] [options[...]]" << std::endl;
+    cout << "\t" << appname << " command archive.zip @filelist.txt[...] [options[...]]" << std::endl;
     cout << std::endl;
     cout << "Command:" << std::endl;
     cout << "\ta or add                       pack files into archive" << std::endl;
@@ -241,7 +242,22 @@ int main( int argc, const char **argv ) {
             continue;
         }
 
-        to_pack.include( args[i], {"*"}, recursive );
+        if( args[i][0] == '@' ) {
+            // is it a @list.txt kind of file ?
+            std::ifstream ifs( &args[i][1] );
+            if( ifs.good() ) {
+                std::stringstream ss; 
+                if( ss << ifs.rdbuf() ) {
+                    auto lines = wire::string( ss.str() ).tokenize("\t\f\v\r\n");
+                    for( auto end = lines.size(), it = end - end; it < end; ++it ) {
+                        to_pack.include( lines[it], {"*"}, recursive );
+                    }                                    
+                }
+            }
+        } else {
+            // regular file or mask
+            to_pack.include( args[i], {"*"}, recursive );
+        }
     }
 
     if( encoders.empty() ) {

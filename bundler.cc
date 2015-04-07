@@ -1,3 +1,12 @@
+// @todo: bundle: flush zip stream while compressing (flushing a single memory block when compressing large folders is a crazy idea)
+// @todo: bundler: parallel unpack (good idea?)
+// @todo: bundler: if lzma_big_dicts * num threads > current_mem force threads=1; || warn "allocation error" 
+
+#ifdef _WIN32
+#define NOMINMAX
+#include <winsock2.h>
+#endif
+
 #include <wire/wire.hpp>
 #include <sao/sao.hpp>
 #include <bubble/bubble.hpp>
@@ -14,7 +23,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "2.0.2"
+#define BUNDLER_VERSION "2.0.3"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -116,7 +125,7 @@ std::string help( const std::string &appname ) {
     cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
     cout << "\t-b or --bypass-slow SIZE       bypass slow zpaq/brotli compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
     cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)" << std::endl;
-    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -154,7 +163,7 @@ int main( int argc, const char **argv ) {
     const bool moveit = args[1] == "m" || args[1] == "move";
     const bool packit = args[1] == "p" || args[1] == "pack" || args[1] == "a" || args[1] == "add";
     const bool testit = args[1] == "t" || args[1] == "test";
-    const bool xtrcit = args[1] == "x" || args[1] == "extract";
+    const bool upckit = args[1] == "x" || args[1] == "extract";
     const bool listit = args[1] == "l" || args[1] == "list";
 
     std::vector<unsigned> encoders, fast_encoders;
@@ -178,7 +187,7 @@ int main( int argc, const char **argv ) {
         std::cout << "moveit=" << moveit << ',';
         std::cout << "packit=" << packit << ',';
         std::cout << "testit=" << testit << ',';
-        std::cout << "xtrcit=" << xtrcit << ',';
+        std::cout << "xtrcit=" << upckit << ',';
         std::cout << "archive=" << archive << ',';
         std::cout << "flat=" << flat << ',';
         std::cout << "quiet=" << quiet << ',';
@@ -199,7 +208,7 @@ int main( int argc, const char **argv ) {
     int numerrors = 0, processed = 0;
     std::uint64_t total_input = 0, total_output = 0;
 
-    if( !moveit && !packit && !testit && !xtrcit && !listit ) {
+    if( !moveit && !packit && !testit && !upckit && !listit ) {
         std::cout << help(args[0]);
         std::cout << "No command." << std::endl;
         return -1;
@@ -237,12 +246,14 @@ int main( int argc, const char **argv ) {
             if( args.has(++i) ) {
                 /**/ if( args[i].lowercase() == "none" )    encoders.push_back( bundle::NONE ),    fast_encoders.push_back( bundle::NONE );
                 else if( args[i].lowercase() == "lz4" )     encoders.push_back( bundle::LZ4 ),     fast_encoders.push_back( bundle::LZ4 );
-                else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMASDK ), fast_encoders.push_back( bundle::LZMASDK );
                 else if( args[i].lowercase() == "lzip" )    encoders.push_back( bundle::LZIP ),    fast_encoders.push_back( bundle::LZIP );
                 else if( args[i].lowercase() == "deflate" ) encoders.push_back( bundle::DEFLATE ), fast_encoders.push_back( bundle::DEFLATE );
                 else if( args[i].lowercase() == "shoco" )   encoders.push_back( bundle::SHOCO ),   fast_encoders.push_back( bundle::SHOCO );
                 else if( args[i].lowercase() == "lz4hc" )   encoders.push_back( bundle::LZ4HC ),   fast_encoders.push_back( bundle::LZ4HC );
                 else if( args[i].lowercase() == "zstd" )    encoders.push_back( bundle::ZSTD ),    fast_encoders.push_back( bundle::ZSTD );
+                else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
+                else if( args[i].lowercase() == "lzma20" )  encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
+                else if( args[i].lowercase() == "lzma25" )  encoders.push_back( bundle::LZMA25 ),  fast_encoders.push_back( bundle::LZMA25 );
                 else if( args[i].lowercase() == "zpaq" )    encoders.push_back( bundle::ZPAQ );
                 else if( args[i].lowercase() == "brotli" )  encoders.push_back( bundle::BROTLI );
                 else --i;
@@ -270,11 +281,11 @@ int main( int argc, const char **argv ) {
     }
 
     if( encoders.empty() ) {
-        encoders.push_back( bundle::LZMASDK );
+        encoders.push_back( bundle::LZMA20 );
     }
 
     if( fast_encoders.empty() ) {
-        fast_encoders.push_back( bundle::LZMASDK );
+        fast_encoders.push_back( bundle::LZMA20 );
     }
 
     if( (packit || moveit) && to_pack.empty() ) {
@@ -412,8 +423,8 @@ int main( int argc, const char **argv ) {
 
                 bool valid = !skipped && !ignored;
 
-                with["filename"] = flat ? flatten( normalize(filename) ) : normalize(filename);
-                with["content"] = valid ? output : input;
+                with["name"] = flat ? flatten( normalize(filename) ) : normalize(filename);
+                with["data"] = valid ? output : input;
 
                 mutex.lock();
 
@@ -495,7 +506,7 @@ int main( int argc, const char **argv ) {
 #if 0
             bool found = false;
             for( auto &m : to_pack ) {
-                if( wire::string( file["filename"] ).matches( m.name() ) ) {
+                if( wire::string( file["name"] ).matches( m.name() ) ) {
                     found = true;
                     break;
                 }
@@ -506,21 +517,24 @@ int main( int argc, const char **argv ) {
             }
 #endif
 
-            title_name = file["filename"];
+            title_name = file["name"];
 
-            std::cout << "[    ] " << title_mode << ": " << file["filename"] << " ...\r";
+            std::cout << "[    ] " << title_mode << ": " << file["name"] << " ...\r";
 
             std::string uncmp;
-            bool ok = is_ok( uncmp, file["content"] );
-            if( testit || listit ) {
-                // ...
-            } else {
+            bool ok = true;
+
+            if( upckit || testit ) {
+                ok = is_ok( uncmp, file["data"] );
+            }
+
+            if( upckit ) {
                 /* @todo - mkfolders() */
-                std::ofstream ofs( file["filename"].c_str(), std::ios::binary );
+                std::ofstream ofs( file["name"].c_str(), std::ios::binary );
                 ofs << uncmp;
             }
 
-            std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << title_mode << ": " << file["filename"] << "    \n";
+            std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << title_mode << ": " << file["name"] << "    \n";
             numerrors += ok ? 0 : 1;
 
             processed++;

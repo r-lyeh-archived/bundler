@@ -14,7 +14,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "2.0.1"
+#define BUNDLER_VERSION "2.0.2"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -108,14 +108,15 @@ std::string help( const std::string &appname ) {
     cout << "\tt or test                      test archive" << std::endl;
     cout << "\tl or list                      list archive" << std::endl;
     cout << "Options:" << std::endl;
-    cout << "\t-f or --flat                   discard path filename information, if using --pack or --move" << std::endl;
     cout << "\t-h or --help                   this screen" << std::endl;
-    cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold. default is 95 (percent)" << std::endl;
-    cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
-    cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
-    cout << "\t-t or --threads NUM            maximum number of parallel threads (defaults to 8)" << std::endl;
-    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)" << std::endl;
     cout << "\t-v or --verbose                show extra info" << std::endl;
+    cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
+    cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
+    cout << "\t-f or --flat                   discard path filename information, if using --pack or --move" << std::endl;
+    cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
+    cout << "\t-b or --bypass-slow SIZE       bypass slow zpaq/brotli compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
+    cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma (default), lzip, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -156,7 +157,7 @@ int main( int argc, const char **argv ) {
     const bool xtrcit = args[1] == "x" || args[1] == "extract";
     const bool listit = args[1] == "l" || args[1] == "list";
 
-    std::vector<unsigned> encoders;
+    std::vector<unsigned> encoders, fast_encoders;
     const std::string archive = args[2];
     unsigned max_threads = 8;
 
@@ -165,7 +166,8 @@ int main( int argc, const char **argv ) {
     const bool recursive = args.has("-r") || args.has("--recursive");
     const bool use = args.has("-u") || args.has("--use");
     const bool verbose = ( args.has("-v") || args.has("--verbose") ) && !quiet;
-    double treshold = 95.00;
+    double treshold = 95.00;    // ignore compression settings if compression ratio below of given treshold 
+    size_t lte = 0;             // bypass slow encoders on files larger or equal than given size (in KiB)
 
     if( !quiet ) {
         std::cout << head(args[0]) << std::endl;
@@ -183,7 +185,8 @@ int main( int argc, const char **argv ) {
         std::cout << "recursive=" << recursive << ',';
         std::cout << "use=" << use << ',';
         std::cout << "verbose=" << verbose << ',';
-        std::cout << "treshold=" << treshold;
+        std::cout << "treshold=" << treshold << ',';
+        std::cout << "lte=" << lte;
         /*
         std::cout << "args=";
         for( auto &arg : args ) {
@@ -224,18 +227,24 @@ int main( int argc, const char **argv ) {
             }
             continue;
         }        
+        if( args[i] == "-b" || args[i] == "--bypass-slow" ) {
+            if( args.has(++i) ) {
+                lte = args[i].as<unsigned>(); 
+            }
+            continue;
+        }        
         if( args[i] == "-u" || args[i] == "--use" ) {
             if( args.has(++i) ) {
-                /**/ if( args[i].lowercase() == "none" )    encoders.push_back( bundle::NONE );
-                else if( args[i].lowercase() == "lz4" )     encoders.push_back( bundle::LZ4 );
-                else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMASDK );
-                else if( args[i].lowercase() == "lzip" )    encoders.push_back( bundle::LZIP );
-                else if( args[i].lowercase() == "deflate" ) encoders.push_back( bundle::DEFLATE );
-                else if( args[i].lowercase() == "shoco" )   encoders.push_back( bundle::SHOCO );
+                /**/ if( args[i].lowercase() == "none" )    encoders.push_back( bundle::NONE ),    fast_encoders.push_back( bundle::NONE );
+                else if( args[i].lowercase() == "lz4" )     encoders.push_back( bundle::LZ4 ),     fast_encoders.push_back( bundle::LZ4 );
+                else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMASDK ), fast_encoders.push_back( bundle::LZMASDK );
+                else if( args[i].lowercase() == "lzip" )    encoders.push_back( bundle::LZIP ),    fast_encoders.push_back( bundle::LZIP );
+                else if( args[i].lowercase() == "deflate" ) encoders.push_back( bundle::DEFLATE ), fast_encoders.push_back( bundle::DEFLATE );
+                else if( args[i].lowercase() == "shoco" )   encoders.push_back( bundle::SHOCO ),   fast_encoders.push_back( bundle::SHOCO );
+                else if( args[i].lowercase() == "lz4hc" )   encoders.push_back( bundle::LZ4HC ),   fast_encoders.push_back( bundle::LZ4HC );
+                else if( args[i].lowercase() == "zstd" )    encoders.push_back( bundle::ZSTD ),    fast_encoders.push_back( bundle::ZSTD );
                 else if( args[i].lowercase() == "zpaq" )    encoders.push_back( bundle::ZPAQ );
-                else if( args[i].lowercase() == "lz4hc" )   encoders.push_back( bundle::LZ4HC );
                 else if( args[i].lowercase() == "brotli" )  encoders.push_back( bundle::BROTLI );
-                else if( args[i].lowercase() == "zstd" )    encoders.push_back( bundle::ZSTD );
                 else --i;
 //                ++i;
             }
@@ -262,6 +271,10 @@ int main( int argc, const char **argv ) {
 
     if( encoders.empty() ) {
         encoders.push_back( bundle::LZMASDK );
+    }
+
+    if( fast_encoders.empty() ) {
+        fast_encoders.push_back( bundle::LZMASDK );
     }
 
     if( (packit || moveit) && to_pack.empty() ) {
@@ -386,7 +399,7 @@ int main( int argc, const char **argv ) {
                     return;
                 }
 
-                auto measures = bundle::measures( input, encoders );
+                auto measures = bundle::measures( input, lte && (input.size() >= lte) * 1024 ? fast_encoders : encoders );
 
                 auto slot1 = bundle::find_slot_for_smallest_compressor( measures, 100.00 - treshold ); // for_fastest_decompressor
                 auto slot2 = bundle::find_slot_for_fastest_decompressor( measures );

@@ -5,11 +5,11 @@ A command-line compression tool that uses [bundle compression suite](https://git
 
 ### usage
 ```c++
-bundler.exe: Bundler 2.0.3 (RELEASE). Compiled on Apr  7 2015 - https://github.com/r-lyeh/bundler
+bundler: Bundler 2.0.4 (RELEASE). Compiled on Apr  8 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
-        bundler.exe command archive.zip files[...] [options[...]]
-        bundler.exe command archive.zip @filelist.txt[...] [options[...]]
+        bundler command archive.zip files[...] [options[...]]
+        bundler command archive.zip @filelist.txt[...] [options[...]]
 
 Command:
         a or add                       pack files into archive
@@ -27,7 +27,7 @@ Options:
         -t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)
         -b or --bypass-slow SIZE       bypass slow zpaq/brotli compressors on files larger than given size (in KiB). defaults to 0 (disabled)
         -i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)
-        -u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)
+        -u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli, zstd, bsc } (*)
 
         (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
@@ -39,5 +39,6 @@ echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++1
 ```
 
 ### changelog
+- v2.0.4: BSC stream support;
 - v2.0.3: faster list command; updated to latest bundle (new brotli, new zstd; split lzmasdk encoder into lzma20 and lzma25 modes) 
 - v2.0.2: added bypass flag for slow compressors

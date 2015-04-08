@@ -23,7 +23,7 @@
 
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "2.0.3"
+#define BUNDLER_VERSION "2.0.4"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -125,7 +125,7 @@ std::string help( const std::string &appname ) {
     cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
     cout << "\t-b or --bypass-slow SIZE       bypass slow zpaq/brotli compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
     cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)" << std::endl;
-    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli, zstd } (*)" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli, zstd, bsc } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -254,6 +254,7 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma20" )  encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma25" )  encoders.push_back( bundle::LZMA25 ),  fast_encoders.push_back( bundle::LZMA25 );
+                else if( args[i].lowercase() == "bsc" )     encoders.push_back( bundle::BSC ),     fast_encoders.push_back( bundle::BSC );
                 else if( args[i].lowercase() == "zpaq" )    encoders.push_back( bundle::ZPAQ );
                 else if( args[i].lowercase() == "brotli" )  encoders.push_back( bundle::BROTLI );
                 else --i;

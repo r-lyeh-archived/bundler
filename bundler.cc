@@ -21,9 +21,30 @@
 #include <string>
 #include <thread>
 
+#define BUNDLER_VERSION "2.0.5" /* (2015/09/24) pump up bundle (pump up brotli; split brotli9/11)
+#define BUNDLER_VERSION "2.0.4" // (2015/04/08) BSC stream support
+#define BUNDLER_VERSION "2.0.3" // (2015/04/07) pump up bundle (new brotli; new zstd; split lzma20/25)
+#define BUNDLER_VERSION "2.0.2" // (2015/04/06) add bypass flag for slow compressors; pump up bubble
+#define BUNDLER_VERSION "2.0.1" // (2015/04/06) add @filelist.txt support
+#define BUNDLER_VERSION "2.0.0" // (2015/01/28) enforce brotli single-thread; add zstd 
+#define BUNDLER_VERSION "1.8.5" // (2014/08/29) bugfix de/compressing empty data; write aligned data unconditionally
+#define BUNDLER_VERSION "1.8.4" // (2014/07/31) limit up to 16 threads max
+#define BUNDLER_VERSION "1.8.3" // (2014/07/17) bugfix case when decompressing malformed streams
+#define BUNDLER_VERSION "1.8.2" // (2014/06/30) pump up bundle
+#define BUNDLER_VERSION "1.8.1" // (2014/06/27) add list command;
+#define BUNDLER_VERSION "1.1.8" // (2014/06/26) pump up bundle; remove extra check guard in test mode; extract mode
+#define BUNDLER_VERSION "1.1.7" // (2014/06/23) add lzh4c mode
+#define BUNDLER_VERSION "1.1.6" // (2014/06/09) add zpaq, -a/--add aliases, bugfix --quiet  
+#define BUNDLER_VERSION "1.1.5" // (2014/06/05) pump up bundle; default to lzma sdk 9.22; add about dialog 
+#define BUNDLER_VERSION "1.1.4" // (2014/06/02) pump up libraries, bugfix for missing files in bundles and dialogs on top; add multithread support (experimental)
+#define BUNDLER_VERSION "1.1.3" // (2014/05/28) pump up sao and bundle libraries
+#define BUNDLER_VERSION "1.1.2" // (2014/05/23) bugfix for nil sized files; simplify usage; handle destructive operations safely
+#define BUNDLER_VERSION "1.1.1" // (2014/05/21) add optional arg to specify compression algorithm
+#define BUNDLER_VERSION "1.1.0" // (2014/05/20) add move parameter; bugfix crash with very small files; add progress dialog
+#define BUNDLER_VERSION "1.0.0" // (2014/05/14) initial version */
+
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_VERSION "2.0.4"
 #define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
@@ -123,9 +144,9 @@ std::string help( const std::string &appname ) {
     cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
     cout << "\t-f or --flat                   discard path filename information, if using --pack or --move" << std::endl;
     cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
-    cout << "\t-b or --bypass-slow SIZE       bypass slow zpaq/brotli compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
+    cout << "\t-b or --bypass-slow SIZE       bypass slow zpaq/brotli11 compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
     cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)" << std::endl;
-    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli, zstd, bsc } (*)" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli9, zstd, bsc, brotli11 } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -143,7 +164,7 @@ double ratio( const T &A, const U &B ) {
 }
 
 int main( int argc, const char **argv ) {
-    getopt args( argc, argv );
+    struct getopt args( argc, argv );
 
     if( args.has("-?") || args.has("-h") || args.has("--help") || args.size() <= 3 ) {
         std::cout << head(args[0]) << std::endl;
@@ -244,19 +265,20 @@ int main( int argc, const char **argv ) {
         }        
         if( args[i] == "-u" || args[i] == "--use" ) {
             if( args.has(++i) ) {
-                /**/ if( args[i].lowercase() == "none" )    encoders.push_back( bundle::NONE ),    fast_encoders.push_back( bundle::NONE );
-                else if( args[i].lowercase() == "lz4" )     encoders.push_back( bundle::LZ4 ),     fast_encoders.push_back( bundle::LZ4 );
-                else if( args[i].lowercase() == "lzip" )    encoders.push_back( bundle::LZIP ),    fast_encoders.push_back( bundle::LZIP );
-                else if( args[i].lowercase() == "deflate" ) encoders.push_back( bundle::DEFLATE ), fast_encoders.push_back( bundle::DEFLATE );
-                else if( args[i].lowercase() == "shoco" )   encoders.push_back( bundle::SHOCO ),   fast_encoders.push_back( bundle::SHOCO );
-                else if( args[i].lowercase() == "lz4hc" )   encoders.push_back( bundle::LZ4HC ),   fast_encoders.push_back( bundle::LZ4HC );
-                else if( args[i].lowercase() == "zstd" )    encoders.push_back( bundle::ZSTD ),    fast_encoders.push_back( bundle::ZSTD );
-                else if( args[i].lowercase() == "lzma" )    encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
-                else if( args[i].lowercase() == "lzma20" )  encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
-                else if( args[i].lowercase() == "lzma25" )  encoders.push_back( bundle::LZMA25 ),  fast_encoders.push_back( bundle::LZMA25 );
-                else if( args[i].lowercase() == "bsc" )     encoders.push_back( bundle::BSC ),     fast_encoders.push_back( bundle::BSC );
-                else if( args[i].lowercase() == "zpaq" )    encoders.push_back( bundle::ZPAQ );
-                else if( args[i].lowercase() == "brotli" )  encoders.push_back( bundle::BROTLI );
+                /**/ if( args[i].lowercase() == "none" )     encoders.push_back( bundle::NONE ),    fast_encoders.push_back( bundle::NONE );
+                else if( args[i].lowercase() == "lz4" )      encoders.push_back( bundle::LZ4 ),     fast_encoders.push_back( bundle::LZ4 );
+                else if( args[i].lowercase() == "lzip" )     encoders.push_back( bundle::LZIP ),    fast_encoders.push_back( bundle::LZIP );
+                else if( args[i].lowercase() == "deflate" )  encoders.push_back( bundle::DEFLATE ), fast_encoders.push_back( bundle::DEFLATE );
+                else if( args[i].lowercase() == "shoco" )    encoders.push_back( bundle::SHOCO ),   fast_encoders.push_back( bundle::SHOCO );
+                else if( args[i].lowercase() == "lz4hc" )    encoders.push_back( bundle::LZ4HC ),   fast_encoders.push_back( bundle::LZ4HC );
+                else if( args[i].lowercase() == "zstd" )     encoders.push_back( bundle::ZSTD ),    fast_encoders.push_back( bundle::ZSTD );
+                else if( args[i].lowercase() == "lzma" )     encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
+                else if( args[i].lowercase() == "lzma20" )   encoders.push_back( bundle::LZMA20 ),  fast_encoders.push_back( bundle::LZMA20 );
+                else if( args[i].lowercase() == "lzma25" )   encoders.push_back( bundle::LZMA25 ),  fast_encoders.push_back( bundle::LZMA25 );
+                else if( args[i].lowercase() == "bsc" )      encoders.push_back( bundle::BSC ),     fast_encoders.push_back( bundle::BSC );
+                else if( args[i].lowercase() == "brotli9" )  encoders.push_back( bundle::BROTLI9 ), fast_encoders.push_back( bundle::BROTLI9 );
+                else if( args[i].lowercase() == "brotli11" ) encoders.push_back( bundle::BROTLI11 );
+                else if( args[i].lowercase() == "zpaq" )     encoders.push_back( bundle::ZPAQ );
                 else --i;
 //                ++i;
             }
@@ -376,9 +398,9 @@ int main( int argc, const char **argv ) {
 
         bool single_thread = false;
         for( auto &PACKING_ALGORITHM : encoders ) {
-            if( PACKING_ALGORITHM == bundle::ZPAQ || PACKING_ALGORITHM == bundle::BROTLI ) {
+            if( PACKING_ALGORITHM == bundle::ZPAQ || PACKING_ALGORITHM == bundle::BROTLI11 ) {
                 single_thread = true;
-            }                
+            }
         }
 
         std::string algorithms;

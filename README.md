@@ -5,31 +5,32 @@ A command-line archiver that uses [bundle compression suite](https://github.com/
 
 ### Usage
 ```c++
-bundler: Bundler 2.0.5 (RELEASE). Compiled on Sep 24 2015 - https://github.com/r-lyeh/bundler
+bundler: Bundler 2.0.6 (RELEASE). Compiled on Sep 28 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
-  bundler command archive.zip files[...] [options[...]]
-  bundler command archive.zip @filelist.txt[...] [options[...]]
+        bundler command archive.zip files[...] [options[...]]
+        bundler command archive.zip @filelist.txt[...] [options[...]]
 
 Command:
-  a or add                       pack files into archive
-  p or pack                      pack files into archive (same than above)
-  m or move                      move files to archive
-  x or extract                   extract archive
-  t or test                      test archive
-  l or list                      list archive
+        a or add                       pack files into archive
+        p or pack                      pack files into archive (same than above)
+        m or move                      move files to archive
+        x or extract                   extract archive
+        t or test                      test archive
+        l or list                      list archive
 Options:
-  -h or --help                   this screen
-  -v or --verbose                show extra info
-  -r or --recursive              recurse subdirectories
-  -q or --quiet                  be silent, unless errors are found
-  -f or --flat                   discard path filename information, if using --pack or --move
-  -t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)
-  -b or --bypass-slow SIZE       bypass slow zpaq/brotli11 compressors on files larger than given size (in KiB). defaults to 0 (disabled)
-  -i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)
-  -u or --use ENCODER            use compression encoder = { none, lz4, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4hc, brotli9, zstd, bsc, brotli11 } (*)
+        -h or --help                   this screen
+        -v or --verbose                show extra info
+        -r or --recursive              recurse subdirectories
+        -q or --quiet                  be silent, unless errors are found
+        -f or --flat                   discard path filename information, if using --pack or --move
+        -t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)
+        -b or --bypass-slow SIZE       bypass slow zpaq/brotli11 compressors on files larger than given size (in KiB). defaults to 0 (disabled)
+        -i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)
+        -u or --use ENCODER            use compression encoder = { none, all, lz4f, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4, brotli9, zstd, bsc, brotli11, shrinker, csc20 } (*)
+        -d or --delete ENCODER         delete compression encoder from useable list (useful after -u all)
 
-  (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
+        (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
 
 ### Build
@@ -39,6 +40,8 @@ echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++1
 ```
 
 ### Changelog
+- v2.0.6 (2015/09/28)
+  - Add CSC20/SHRINKER support
 - v2.0.5 (2015/09/24)
   - Pump up bundle (pump up brotli; split brotli9/11)
 - v2.0.4 (2015/04/08)

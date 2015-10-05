@@ -5,6 +5,10 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <winsock2.h>
+#include <direct.h>
+#define mkdir(str,mode) _mkdir(str)
+#else
+#include <sys/stat.h>
 #endif
 
 #include <wire/wire.hpp>
@@ -21,7 +25,8 @@
 #include <string>
 #include <thread>
 
-#define BUNDLER_VERSION "2.0.6" /* (2015/09/28) add CSC/SHRINKER support
+#define BUNDLER_VERSION "2.0.7" /* (2015/10/05) recreate folder structure when unpacking (@snail23)
+#define BUNDLER_VERSION "2.0.6" // (2015/09/28) add CSC/SHRINKER support
 #define BUNDLER_VERSION "2.0.5" // (2015/09/24) pump up bundle (pump up brotli; split brotli9/11)
 #define BUNDLER_VERSION "2.0.4" // (2015/04/08) BSC stream support
 #define BUNDLER_VERSION "2.0.3" // (2015/04/07) pump up bundle (new brotli; new zstd; split lzma20/25)
@@ -583,10 +588,25 @@ int main( int argc, const char **argv ) {
                 ok = is_ok( uncmp, file["data"] );
             }
 
-            if( upckit ) {
-                /* @todo - mkfolders() */
+            if( upckit && ok ) {
+                // recreate folder structure
+                wire::string  path = file["name"];
+                wire::strings dirs = path.tokenize("\\/");
+
+                if( path[-1] != '\\' && path[-1] != '/' ) {
+                    dirs.pop_back();
+                }
+
+                path.clear();
+                for( auto &dir : dirs ) {
+                    path += dir + "/";
+                    mkdir(path.c_str(), 0777);
+                }
+
+                // try to unpack it
                 std::ofstream ofs( file["name"].c_str(), std::ios::binary );
                 ofs << uncmp;
+                ok = ofs.good();
             }
 
             std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << title_mode << ": " << file["name"] << "    \n";

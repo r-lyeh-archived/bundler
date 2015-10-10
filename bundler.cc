@@ -25,7 +25,8 @@
 #include <string>
 #include <thread>
 
-#define BUNDLER_VERSION "2.0.7" /* (2015/10/05) recreate folder structure when unpacking (@snail23)
+#define BUNDLER_VERSION "2.0.8" /* (2015/10/09) display compression ranking for all processed files; new icon
+#define BUNDLER_VERSION "2.0.7" // (2015/10/05) recreate folder structure when unpacking (@snail23)
 #define BUNDLER_VERSION "2.0.6" // (2015/09/28) add CSC/SHRINKER support
 #define BUNDLER_VERSION "2.0.5" // (2015/09/24) pump up bundle (pump up brotli; split brotli9/11)
 #define BUNDLER_VERSION "2.0.4" // (2015/04/08) BSC stream support
@@ -179,7 +180,7 @@ int main( int argc, const char **argv ) {
 
         bubble::show( bubble::string() <<
             "title.text=About;"
-            "body.icon=8;"
+            "body.icon=1;" //8
             "head.text=" << BUNDLER_TEXT << ";"
             "body.text=" << "<a href\a\"" << BUNDLER_URL << "\">" << BUNDLER_URL << "</a>;"
             "style.minimizable=1;"
@@ -435,7 +436,7 @@ int main( int argc, const char **argv ) {
 
         bool single_thread = false;
         for( auto &PACKING_ALGORITHM : encoders ) {
-            if( PACKING_ALGORITHM == bundle::ZPAQ || PACKING_ALGORITHM == bundle::BROTLI11 ) {
+            if( PACKING_ALGORITHM == bundle::ZPAQ || PACKING_ALGORITHM == bundle::BROTLI11 || PACKING_ALGORITHM == bundle::BROTLI9 ) {
                 single_thread = true;
             }
         }
@@ -472,11 +473,11 @@ int main( int argc, const char **argv ) {
 
                 auto measures = bundle::measures( input, lte && (input.size() >= lte) * 1024 ? fast_encoders : encoders );
 
-                auto slot1 = bundle::find_slot_for_smallest_compressor( measures, 100.00 - treshold ); // for_fastest_decompressor
-                auto slot2 = bundle::find_slot_for_fastest_decompressor( measures );
-                bool skipped = (slot1 == ~0);
+                auto slot1 = bundle::sort_smallest_encoders( measures, 100.00 - treshold ); // for_fastest_decompressor
+                auto slot2 = bundle::sort_fastest_decoders( measures );
+                bool skipped = slot1.empty();
 
-                const std::string &output = skipped ? input : measures[ slot1 ].packed;
+                const std::string &output = skipped ? input : measures[ slot1[0] ].packed;
 
                 double ratio = ::ratio( input.size(), output.size() );
                 bool ignored = ratio >= treshold;
@@ -489,8 +490,18 @@ int main( int argc, const char **argv ) {
                 mutex.lock();
 
                 if( !quiet ) {
-                    std::string extra = ( valid ? bundle::name_of( measures[ slot1 ].packed ) : "skipped" );
-                    std::cout << "[ OK ] " << title_mode << ": " << filename << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%) (" << extra << ")" << std::endl;
+                    std::string rank, sep;
+                    if( valid ) {
+                        for( auto &slot : slot1 ) {
+                            rank += sep + bundle::name_of( measures[ slot ].packed );
+                            sep = "<";
+                        }
+                        // update title w/ latest rank
+                        title_mode = std::string() + ( packit ? "pack" : "move" ) + " (" + rank + ")";
+                    } else {
+                        rank = "skipped";
+                    }
+                    std::cout << "[ OK ] " /*<< title_mode << ": "*/ << filename << ": " << input.size() << " -> " << output.size() << " (" << ratio << "%) (" << rank << ")" << std::endl;
                 }
 
                 total_input += input.size();

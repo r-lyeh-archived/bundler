@@ -25,7 +25,8 @@
 #include <string>
 #include <thread>
 
-#define BUNDLER_VERSION "2.0.8" /* (2015/10/09) display compression ranking for all processed files; new icon
+#define BUNDLER_VERSION "2.0.9" /* (2015/10/29) display extra listing information
+#define BUNDLER_VERSION "2.0.8" // (2015/10/09) display compression ranking for all processed files; new icon
 #define BUNDLER_VERSION "2.0.7" // (2015/10/05) recreate folder structure when unpacking (@snail23)
 #define BUNDLER_VERSION "2.0.6" // (2015/09/28) add CSC/SHRINKER support
 #define BUNDLER_VERSION "2.0.5" // (2015/09/24) pump up bundle (pump up brotli; split brotli9/11)
@@ -486,6 +487,7 @@ int main( int argc, const char **argv ) {
 
                 with["name"] = flat ? flatten( normalize(filename) ) : normalize(filename);
                 with["data"] = valid ? output : input;
+                //with["/**/"] = valid ? with.toc() : std::string();
 
                 mutex.lock();
 

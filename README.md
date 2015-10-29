@@ -5,11 +5,11 @@ A command-line archiver that uses [bundle compression suite](https://github.com/
 
 ### Usage
 ```c++
-bundler: Bundler 2.0.8 (RELEASE). Compiled on Oct 10 2015 - https://github.com/r-lyeh/bundler
+bundler.exe: Bundler 2.0.9 (RELEASE). Compiled on Oct 29 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
-        bundler command archive.zip files[...] [options[...]]
-        bundler command archive.zip @filelist.txt[...] [options[...]]
+        bundler.exe command archive.zip files[...] [options[...]]
+        bundler.exe command archive.zip @filelist.txt[...] [options[...]]
 
 Command:
         a or add                       pack files into archive
@@ -42,6 +42,7 @@ echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++1
 ```
 
 ### Changelog
+- v2.0.9 (2015/10/29): display extra listing information
 - v2.0.8 (2015/10/10): Display compression ranking for all processed files; new icon
 - v2.0.7 (2015/10/05): Recreate folder structure when unpacking (@snail23)
 - v2.0.6 (2015/09/28): Add CSC20/SHRINKER support

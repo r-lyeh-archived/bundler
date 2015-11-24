@@ -25,7 +25,8 @@
 #include <string>
 #include <thread>
 
-#define BUNDLER_VERSION "2.0.9" /* (2015/10/29) display extra listing information
+#define BUNDLER_VERSION "2.1.0" /* (2015/11/24) add ZMOLLY/ZLING/ZSTDF/TANGELO/BCM/MCM support
+#define BUNDLER_VERSION "2.0.9" // (2015/10/29) display extra listing information
 #define BUNDLER_VERSION "2.0.8" // (2015/10/09) display compression ranking for all processed files; new icon
 #define BUNDLER_VERSION "2.0.7" // (2015/10/05) recreate folder structure when unpacking (@snail23)
 #define BUNDLER_VERSION "2.0.6" // (2015/09/28) add CSC/SHRINKER support
@@ -148,14 +149,15 @@ std::string help( const std::string &appname ) {
     cout << "Options:" << std::endl;
     cout << "\t-h or --help                   this screen" << std::endl;
     cout << "\t-v or --verbose                show extra info" << std::endl;
-    cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
-    cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
-    cout << "\t-f or --flat                   discard path filename information, if using --pack or --move" << std::endl;
-    cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
-    cout << "\t-b or --bypass-slow SIZE       bypass slow zpaq/brotli11 compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
-    cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)" << std::endl;
-    cout << "\t-u or --use ENCODER            use compression encoder = { none, all, lz4f, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4, brotli9, zstd, bsc, brotli11, shrinker, csc20 } (*)" << std::endl;
+    cout << "\t-b or --bypass-slow SIZE       bypass slow compressors on files larger than given size (in KiB). defaults to 0 (disabled)" << std::endl;
     cout << "\t-d or --delete ENCODER         delete compression encoder from useable list (useful after -u all)" << std::endl;
+    cout << "\t-f or --flat                   discard path filename information, if using --pack or --move" << std::endl;
+    cout << "\t-i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)" << std::endl;
+    cout << "\t-q or --quiet                  be silent, unless errors are found" << std::endl;
+    cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
+    cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
+    cout << "\t-u or --use ENCODER            use compression encoder = { none, all, lz4, lz4f, zstd, zstdf, lzma20 (default), lzma25, brotli9, brotli11," << std::endl 
+         << "\t                               bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm  } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -181,7 +183,7 @@ int main( int argc, const char **argv ) {
 
         bubble::show( bubble::string() <<
             "title.text=About;"
-            "body.icon=1;" //8
+            "body.icon=8;" //8
             "head.text=" << BUNDLER_TEXT << ";"
             "body.text=" << "<a href\a\"" << BUNDLER_URL << "\">" << BUNDLER_URL << "</a>;"
             "style.minimizable=1;"
@@ -274,25 +276,31 @@ int main( int argc, const char **argv ) {
         }        
         if( args[i] == "-u" || args[i] == "--use" ) {
             if( args.has(++i) ) {
-                /**/ if( args[i].lowercase() == "none" )      encoders.push_back( bundle::NONE ),     fast_encoders.push_back( bundle::NONE );
+                /**/ if( args[i].lowercase() == "bcm" )       encoders.push_back( bundle::BCM ),      fast_encoders.push_back( bundle::BCM );
+                else if( args[i].lowercase() == "brotli11" )  encoders.push_back( bundle::BROTLI11 );
+                else if( args[i].lowercase() == "brotli9" )   encoders.push_back( bundle::BROTLI9 );
+                else if( args[i].lowercase() == "bsc" )       encoders.push_back( bundle::BSC ),      fast_encoders.push_back( bundle::BSC );
+                else if( args[i].lowercase() == "csc20" )     encoders.push_back( bundle::CSC20 ),    fast_encoders.push_back( bundle::CSC20 );
+                else if( args[i].lowercase() == "deflate" )   encoders.push_back( bundle::MINIZ ),    fast_encoders.push_back( bundle::MINIZ );
+                else if( args[i].lowercase() == "miniz" )     encoders.push_back( bundle::MINIZ ),    fast_encoders.push_back( bundle::MINIZ );
+                else if( args[i].lowercase() == "lz4"   )     encoders.push_back( bundle::LZ4 ),      fast_encoders.push_back( bundle::LZ4 );
                 else if( args[i].lowercase() == "lz4f" )      encoders.push_back( bundle::LZ4F ),     fast_encoders.push_back( bundle::LZ4F );
                 else if( args[i].lowercase() == "lzip" )      encoders.push_back( bundle::LZIP ),     fast_encoders.push_back( bundle::LZIP );
-                else if( args[i].lowercase() == "deflate" )   encoders.push_back( bundle::DEFLATE ),  fast_encoders.push_back( bundle::DEFLATE );
-                else if( args[i].lowercase() == "shoco" )     encoders.push_back( bundle::SHOCO ),    fast_encoders.push_back( bundle::SHOCO );
-                else if( args[i].lowercase() == "lz4"   )     encoders.push_back( bundle::LZ4 ),      fast_encoders.push_back( bundle::LZ4 );
-                else if( args[i].lowercase() == "zstd" )      encoders.push_back( bundle::ZSTD ),     fast_encoders.push_back( bundle::ZSTD );
                 else if( args[i].lowercase() == "lzma" )      encoders.push_back( bundle::LZMA20 ),   fast_encoders.push_back( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma20" )    encoders.push_back( bundle::LZMA20 ),   fast_encoders.push_back( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma25" )    encoders.push_back( bundle::LZMA25 ),   fast_encoders.push_back( bundle::LZMA25 );
-                else if( args[i].lowercase() == "bsc" )       encoders.push_back( bundle::BSC ),      fast_encoders.push_back( bundle::BSC );
-                else if( args[i].lowercase() == "csc20" )     encoders.push_back( bundle::CSC20 ),    fast_encoders.push_back( bundle::CSC20 );
+                else if( args[i].lowercase() == "mcm" )       encoders.push_back( bundle::MCM );
+                else if( args[i].lowercase() == "shoco" )     encoders.push_back( bundle::SHOCO ),    fast_encoders.push_back( bundle::SHOCO );
                 else if( args[i].lowercase() == "shrinker" )  encoders.push_back( bundle::SHRINKER ), fast_encoders.push_back( bundle::SHRINKER );
-                else if( args[i].lowercase() == "brotli9" )   encoders.push_back( bundle::BROTLI9 ),  fast_encoders.push_back( bundle::BROTLI9 );
-                else if( args[i].lowercase() == "brotli11" )  encoders.push_back( bundle::BROTLI11 );
+                else if( args[i].lowercase() == "tangelo" )   encoders.push_back( bundle::TANGELO );
+                else if( args[i].lowercase() == "zling" )     encoders.push_back( bundle::ZLING ),    fast_encoders.push_back( bundle::ZLING );
+                else if( args[i].lowercase() == "zmolly" )    encoders.push_back( bundle::ZMOLLY ),   fast_encoders.push_back( bundle::ZMOLLY );
                 else if( args[i].lowercase() == "zpaq" )      encoders.push_back( bundle::ZPAQ );
+                else if( args[i].lowercase() == "zstd" )      encoders.push_back( bundle::ZSTD ),     fast_encoders.push_back( bundle::ZSTD );
+                else if( args[i].lowercase() == "zstdf" )     encoders.push_back( bundle::ZSTDF ),    fast_encoders.push_back( bundle::ZSTDF );
+                else if( args[i].lowercase() == "none" )      encoders.push_back( bundle::RAW ),      fast_encoders.push_back( bundle::RAW );
                 else if( args[i].lowercase() == "all" )       encoders = fast_encoders = bundle::encodings();
                 else --i;
-//                ++i;
             }
             continue;
         }
@@ -302,24 +310,29 @@ int main( int argc, const char **argv ) {
                 fast_encoders.erase( std::remove( fast_encoders.begin(), fast_encoders.end(), Q ), fast_encoders.end() );
             };
             if( args.has(++i) ) {
-                /**/ if( args[i].lowercase() == "none" )      erase( bundle::NONE );
+                /**/ if( args[i].lowercase() == "bcm" )       erase( bundle::BCM );
+                else if( args[i].lowercase() == "brotli11" )  erase( bundle::BROTLI11 );
+                else if( args[i].lowercase() == "brotli9" )   erase( bundle::BROTLI9 );
+                else if( args[i].lowercase() == "bsc" )       erase( bundle::BSC );
+                else if( args[i].lowercase() == "csc20" )     erase( bundle::CSC20 );
+                else if( args[i].lowercase() == "deflate" )   erase( bundle::MINIZ );
+                else if( args[i].lowercase() == "miniz" )     erase( bundle::MINIZ );
+                else if( args[i].lowercase() == "lz4"   )     erase( bundle::LZ4 );
                 else if( args[i].lowercase() == "lz4f" )      erase( bundle::LZ4F );
                 else if( args[i].lowercase() == "lzip" )      erase( bundle::LZIP );
-                else if( args[i].lowercase() == "deflate" )   erase( bundle::DEFLATE );
-                else if( args[i].lowercase() == "shoco" )     erase( bundle::SHOCO );
-                else if( args[i].lowercase() == "lz4"   )     erase( bundle::LZ4 );
-                else if( args[i].lowercase() == "zstd" )      erase( bundle::ZSTD );
                 else if( args[i].lowercase() == "lzma" )      erase( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma20" )    erase( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma25" )    erase( bundle::LZMA25 );
-                else if( args[i].lowercase() == "bsc" )       erase( bundle::BSC );
-                else if( args[i].lowercase() == "csc20" )     erase( bundle::CSC20 );
+                else if( args[i].lowercase() == "mcm" )       erase( bundle::MCM );
+                else if( args[i].lowercase() == "shoco" )     erase( bundle::SHOCO );
                 else if( args[i].lowercase() == "shrinker" )  erase( bundle::SHRINKER );
-                else if( args[i].lowercase() == "brotli9" )   erase( bundle::BROTLI9 );
-                else if( args[i].lowercase() == "brotli11" )  erase( bundle::BROTLI11 );
+                else if( args[i].lowercase() == "tangelo" )   erase( bundle::TANGELO );
+                else if( args[i].lowercase() == "zling" )     erase( bundle::ZLING );
+                else if( args[i].lowercase() == "zmolly" )    erase( bundle::ZMOLLY );
                 else if( args[i].lowercase() == "zpaq" )      erase( bundle::ZPAQ );
+                else if( args[i].lowercase() == "zstd" )      erase( bundle::ZSTD );
+                else if( args[i].lowercase() == "zstdf" )     erase( bundle::ZSTDF );
                 else --i;
-//                ++i;
             }
             continue;
         }
@@ -333,7 +346,7 @@ int main( int argc, const char **argv ) {
                     auto lines = wire::string( ss.str() ).tokenize("\t\f\v\r\n");
                     for( auto end = lines.size(), it = end - end; it < end; ++it ) {
                         to_pack.include( lines[it], {"*"}, recursive );
-                    }                                    
+                    }
                 }
             }
         } else {
@@ -532,7 +545,7 @@ int main( int argc, const char **argv ) {
                 std::cout << "[    ] flushing to disk..." << '\r';
             }
             archived.resize( processed );
-            bool ok = writefile( archive, archived.bin(bundle::NONE) );
+            bool ok = writefile( archive, archived.bnd() );
             if( !quiet ) {
                 std::cout << ( ok ? "[ OK ] " : "[FAIL] " ) << "flushing to disk..." << std::endl;
             }
@@ -557,7 +570,7 @@ int main( int argc, const char **argv ) {
         {
             auto result = readfile( archive );
             if( 0 == numerrors ) {
-                archived.bin( result.second );
+                archived.bnd( result.second );
             }
         }
 

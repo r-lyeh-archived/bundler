@@ -5,11 +5,11 @@ A command-line archiver that uses [bundle compression suite](https://github.com/
 
 ### Usage
 ```c++
-bundler.exe: Bundler 2.0.9 (RELEASE). Compiled on Oct 29 2015 - https://github.com/r-lyeh/bundler
+bundler: Bundler 2.1.0 (RELEASE). Compiled on Nov 24 2015 - https://github.com/r-lyeh/bundler
 
 Usage:
-        bundler.exe command archive.zip files[...] [options[...]]
-        bundler.exe command archive.zip @filelist.txt[...] [options[...]]
+        bundler command archive.zip files[...] [options[...]]
+        bundler command archive.zip @filelist.txt[...] [options[...]]
 
 Command:
         a or add                       pack files into archive
@@ -21,14 +21,15 @@ Command:
 Options:
         -h or --help                   this screen
         -v or --verbose                show extra info
-        -r or --recursive              recurse subdirectories
-        -q or --quiet                  be silent, unless errors are found
-        -f or --flat                   discard path filename information, if using --pack or --move
-        -t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)
-        -b or --bypass-slow SIZE       bypass slow zpaq/brotli11 compressors on files larger than given size (in KiB). defaults to 0 (disabled)
-        -i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)
-        -u or --use ENCODER            use compression encoder = { none, all, lz4f, lzma20 (default), lzip, lzma25, deflate, shoco, zpaq, lz4, brotli9, zstd, bsc, brotli11, shrinker, csc20 } (*)
+        -b or --bypass-slow SIZE       bypass slow compressors on files larger than given size (in KiB). defaults to 0 (disabled)
         -d or --delete ENCODER         delete compression encoder from useable list (useful after -u all)
+        -f or --flat                   discard path filename information, if using --pack or --move
+        -i or --ignore PERCENTAGE      ignore compression on files that compress less than given treshold percentage. defaults to 95.0 (percent)
+        -q or --quiet                  be silent, unless errors are found
+        -r or --recursive              recurse subdirectories
+        -t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)
+        -u or --use ENCODER            use compression encoder = { none, all, lz4, lz4f, zstd, zstdf, lzma20 (default), lzma25, brotli9, brotli11,
+                                       bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm  } (*)
 
         (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
@@ -42,7 +43,8 @@ echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++1
 ```
 
 ### Changelog
-- v2.0.9 (2015/10/29): display extra listing information
+- v2.1.0 (2015/11/24): Add ZMOLLY/ZLING/ZSTDF/TANGELO/BCM/MCM support
+- v2.0.9 (2015/10/29): Display extra listing information
 - v2.0.8 (2015/10/10): Display compression ranking for all processed files; new icon
 - v2.0.7 (2015/10/05): Recreate folder structure when unpacking (@snail23)
 - v2.0.6 (2015/09/28): Add CSC20/SHRINKER support
@@ -79,4 +81,3 @@ echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++1
 - v1.1.0 (2014/05/20): Bugfix crash with very small files
 - v1.1.0 (2014/05/20): Add progress dialog
 - v1.0.0 (2014/05/14): Initial version
-deps\reshacker\ResourceHacker.exe -addoverwrite bundler.exe, bundler.exe, deps\bundler.ico, ICONGROUP, MAINICON, 0 

@@ -24,8 +24,10 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <stdint.h>
 
-#define BUNDLER_VERSION "2.1.0" /* (2015/11/24) add ZMOLLY/ZLING/ZSTDF/TANGELO/BCM/MCM support
+#define BUNDLER_VERSION "2.1.1" /* (2015/12/02) add CRUSH/LZJB support
+#define BUNDLER_VERSION "2.1.0" // (2015/11/24) add ZMOLLY/ZLING/ZSTDF/TANGELO/BCM/MCM support
 #define BUNDLER_VERSION "2.0.9" // (2015/10/29) display extra listing information
 #define BUNDLER_VERSION "2.0.8" // (2015/10/09) display compression ranking for all processed files; new icon
 #define BUNDLER_VERSION "2.0.7" // (2015/10/05) recreate folder structure when unpacking (@snail23)
@@ -52,9 +54,15 @@
 #define BUNDLER_VERSION "1.1.0" // (2014/05/20) add move parameter; bugfix crash with very small files; add progress dialog
 #define BUNDLER_VERSION "1.0.0" // (2014/05/14) initial version */
 
+#if ULONG_MAX == 4294967295
+#   define BUNDLER_BITS    "64-bit"
+#else
+#   define BUNDLER_BITS    "32-bit"
+#endif
+
 #define BUNDLER_BUILD "DEBUG"
 #define BUNDLER_URL "https://github.com/r-lyeh/bundler"
-#define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BUILD ")"
+#define BUNDLER_TEXT "Bundler " BUNDLER_VERSION " (" BUNDLER_BITS " " BUNDLER_BUILD ")"
 
 #if defined(NDEBUG) || defined(_NDEBUG)
 #undef  BUNDLER_BUILD
@@ -157,7 +165,7 @@ std::string help( const std::string &appname ) {
     cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
     cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
     cout << "\t-u or --use ENCODER            use compression encoder = { none, all, lz4, lz4f, zstd, zstdf, lzma20 (default), lzma25, brotli9, brotli11," << std::endl 
-         << "\t                               bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm  } (*)" << std::endl;
+         << "\t                               bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm, crush, lzjb  } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -280,16 +288,19 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "brotli11" )  encoders.push_back( bundle::BROTLI11 );
                 else if( args[i].lowercase() == "brotli9" )   encoders.push_back( bundle::BROTLI9 );
                 else if( args[i].lowercase() == "bsc" )       encoders.push_back( bundle::BSC ),      fast_encoders.push_back( bundle::BSC );
+                else if( args[i].lowercase() == "crush" )     encoders.push_back( bundle::CRUSH ),    fast_encoders.push_back( bundle::CRUSH );
                 else if( args[i].lowercase() == "csc20" )     encoders.push_back( bundle::CSC20 ),    fast_encoders.push_back( bundle::CSC20 );
                 else if( args[i].lowercase() == "deflate" )   encoders.push_back( bundle::MINIZ ),    fast_encoders.push_back( bundle::MINIZ );
-                else if( args[i].lowercase() == "miniz" )     encoders.push_back( bundle::MINIZ ),    fast_encoders.push_back( bundle::MINIZ );
                 else if( args[i].lowercase() == "lz4"   )     encoders.push_back( bundle::LZ4 ),      fast_encoders.push_back( bundle::LZ4 );
                 else if( args[i].lowercase() == "lz4f" )      encoders.push_back( bundle::LZ4F ),     fast_encoders.push_back( bundle::LZ4F );
                 else if( args[i].lowercase() == "lzip" )      encoders.push_back( bundle::LZIP ),     fast_encoders.push_back( bundle::LZIP );
+                else if( args[i].lowercase() == "lzjb" )      encoders.push_back( bundle::LZJB ),     fast_encoders.push_back( bundle::LZJB );
                 else if( args[i].lowercase() == "lzma" )      encoders.push_back( bundle::LZMA20 ),   fast_encoders.push_back( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma20" )    encoders.push_back( bundle::LZMA20 ),   fast_encoders.push_back( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma25" )    encoders.push_back( bundle::LZMA25 ),   fast_encoders.push_back( bundle::LZMA25 );
                 else if( args[i].lowercase() == "mcm" )       encoders.push_back( bundle::MCM );
+                else if( args[i].lowercase() == "miniz" )     encoders.push_back( bundle::MINIZ ),    fast_encoders.push_back( bundle::MINIZ );
+                else if( args[i].lowercase() == "none" )      encoders.push_back( bundle::RAW ),      fast_encoders.push_back( bundle::RAW );
                 else if( args[i].lowercase() == "shoco" )     encoders.push_back( bundle::SHOCO ),    fast_encoders.push_back( bundle::SHOCO );
                 else if( args[i].lowercase() == "shrinker" )  encoders.push_back( bundle::SHRINKER ), fast_encoders.push_back( bundle::SHRINKER );
                 else if( args[i].lowercase() == "tangelo" )   encoders.push_back( bundle::TANGELO );
@@ -298,7 +309,6 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "zpaq" )      encoders.push_back( bundle::ZPAQ );
                 else if( args[i].lowercase() == "zstd" )      encoders.push_back( bundle::ZSTD ),     fast_encoders.push_back( bundle::ZSTD );
                 else if( args[i].lowercase() == "zstdf" )     encoders.push_back( bundle::ZSTDF ),    fast_encoders.push_back( bundle::ZSTDF );
-                else if( args[i].lowercase() == "none" )      encoders.push_back( bundle::RAW ),      fast_encoders.push_back( bundle::RAW );
                 else if( args[i].lowercase() == "all" )       encoders = fast_encoders = bundle::encodings();
                 else --i;
             }
@@ -314,16 +324,18 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "brotli11" )  erase( bundle::BROTLI11 );
                 else if( args[i].lowercase() == "brotli9" )   erase( bundle::BROTLI9 );
                 else if( args[i].lowercase() == "bsc" )       erase( bundle::BSC );
+                else if( args[i].lowercase() == "crush" )     erase( bundle::CRUSH );
                 else if( args[i].lowercase() == "csc20" )     erase( bundle::CSC20 );
                 else if( args[i].lowercase() == "deflate" )   erase( bundle::MINIZ );
-                else if( args[i].lowercase() == "miniz" )     erase( bundle::MINIZ );
-                else if( args[i].lowercase() == "lz4"   )     erase( bundle::LZ4 );
+                else if( args[i].lowercase() == "lz4" )       erase( bundle::LZ4 );
                 else if( args[i].lowercase() == "lz4f" )      erase( bundle::LZ4F );
                 else if( args[i].lowercase() == "lzip" )      erase( bundle::LZIP );
+                else if( args[i].lowercase() == "lzjb" )      erase( bundle::LZJB );
                 else if( args[i].lowercase() == "lzma" )      erase( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma20" )    erase( bundle::LZMA20 );
                 else if( args[i].lowercase() == "lzma25" )    erase( bundle::LZMA25 );
                 else if( args[i].lowercase() == "mcm" )       erase( bundle::MCM );
+                else if( args[i].lowercase() == "miniz" )     erase( bundle::MINIZ );
                 else if( args[i].lowercase() == "shoco" )     erase( bundle::SHOCO );
                 else if( args[i].lowercase() == "shrinker" )  erase( bundle::SHRINKER );
                 else if( args[i].lowercase() == "tangelo" )   erase( bundle::TANGELO );

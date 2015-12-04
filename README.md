@@ -36,7 +36,7 @@ Options:
 
 ### Build
 ```
-echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /EHsc /link setargv.obj 
+echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /DBUNDLE_USE_OMP_TIMER=1 /EHsc /link setargv.obj 
 echo windows && mt.exe -manifest bundler.exe.manifest -outputresource:bundler.exe;1
 echo windows && deps\rh\ResourceHacker.exe -addoverwrite bundler.exe,bundler.exe,deps\bundler.ico,ICONGROUP,MAINICON,0
 echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++11

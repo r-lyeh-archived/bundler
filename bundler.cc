@@ -26,7 +26,8 @@
 #include <thread>
 #include <stdint.h>
 
-#define BUNDLER_VERSION "2.1.2" /* (2015/12/04) pump up BUNDLE
+#define BUNDLER_VERSION "2.1.3" /* (2016/02/08) add BZIP2 support
+#define BUNDLER_VERSION "2.1.2" // (2015/12/04) update BUNDLE library
 #define BUNDLER_VERSION "2.1.1" // (2015/12/02) add CRUSH/LZJB support
 #define BUNDLER_VERSION "2.1.0" // (2015/11/24) add ZMOLLY/ZLING/ZSTDF/TANGELO/BCM/MCM support
 #define BUNDLER_VERSION "2.0.9" // (2015/10/29) display extra listing information
@@ -166,7 +167,7 @@ std::string help( const std::string &appname ) {
     cout << "\t-r or --recursive              recurse subdirectories" << std::endl;
     cout << "\t-t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)" << std::endl;
     cout << "\t-u or --use ENCODER            use compression encoder = { none, all, lz4, lz4f, zstd, zstdf, lzma20 (default), lzma25, brotli9, brotli11," << std::endl 
-         << "\t                               bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm, crush, lzjb  } (*)" << std::endl;
+         << "\t                               bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm, crush, lzjb, bzip2 } (*)" << std::endl;
     cout << std::endl;
     cout << "\t(*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file." << std::endl;
     cout << std::endl;
@@ -289,6 +290,7 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "brotli11" )  encoders.push_back( bundle::BROTLI11 );
                 else if( args[i].lowercase() == "brotli9" )   encoders.push_back( bundle::BROTLI9 );
                 else if( args[i].lowercase() == "bsc" )       encoders.push_back( bundle::BSC );
+                else if( args[i].lowercase() == "bzip2" )     encoders.push_back( bundle::BZIP2 ),    fast_encoders.push_back( bundle::BZIP2 );
                 else if( args[i].lowercase() == "crush" )     encoders.push_back( bundle::CRUSH ),    fast_encoders.push_back( bundle::CRUSH );
                 else if( args[i].lowercase() == "csc20" )     encoders.push_back( bundle::CSC20 );
                 else if( args[i].lowercase() == "deflate" )   encoders.push_back( bundle::MINIZ ),    fast_encoders.push_back( bundle::MINIZ );
@@ -325,6 +327,7 @@ int main( int argc, const char **argv ) {
                 else if( args[i].lowercase() == "brotli11" )  erase( bundle::BROTLI11 );
                 else if( args[i].lowercase() == "brotli9" )   erase( bundle::BROTLI9 );
                 else if( args[i].lowercase() == "bsc" )       erase( bundle::BSC );
+                else if( args[i].lowercase() == "bzip2" )     erase( bundle::BZIP2 );
                 else if( args[i].lowercase() == "crush" )     erase( bundle::CRUSH );
                 else if( args[i].lowercase() == "csc20" )     erase( bundle::CSC20 );
                 else if( args[i].lowercase() == "deflate" )   erase( bundle::MINIZ );

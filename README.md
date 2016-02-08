@@ -5,7 +5,7 @@ A command-line archiver that uses [bundle compression suite](https://github.com/
 
 ### Usage
 ```lisp
-bundler: Bundler 2.1.1 (64-bit RELEASE). Compiled on Dec  2 2015 - https://github.com/r-lyeh/bundler
+bundler: Bundler 2.1.3 (64-bit RELEASE). Compiled on Feb  8 2016 - https://github.com/r-lyeh/bundler
 
 Usage:
         bundler command archive.zip files[...] [options[...]]
@@ -29,7 +29,7 @@ Options:
         -r or --recursive              recurse subdirectories
         -t or --threads NUM            maximum number of parallel threads, if possible. defaults to 8 (threads)
         -u or --use ENCODER            use compression encoder = { none, all, lz4, lz4f, zstd, zstdf, lzma20 (default), lzma25, brotli9, brotli11,
-                                       bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm, crush, lzjb  } (*)
+                                       bsc, csc20, shrinker, shoco, miniz, lzip, zpaq, tangelo, zmolly, zling, bcm, mcm, crush, lzjb, bzip2 } (*)
 
         (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
@@ -43,6 +43,8 @@ echo mac osx && clang++ bundler.cc -obundler.osx -I deps -O3 -DNDEBUG --std=c++1
 ```
 
 ### Changelog
+- v2.1.3 (2016/02/08): Add BZIP2 support
+- v2.1.2 (2015/12/04): Update Bundle library
 - v2.1.1 (2015/12/02): Add CRUNCH/LZJB support
 - v2.1.0 (2015/11/24): Add ZMOLLY/ZLING/ZSTDF/TANGELO/BCM/MCM support
 - v2.0.9 (2015/10/29): Display extra listing information

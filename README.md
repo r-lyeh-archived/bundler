@@ -34,7 +34,12 @@ Options:
         (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
 
-### Build
+### Getting Started
+
+```
+git clone https://github.com/r-lyeh/bundler --recursive
+```
+
 ```
 echo windows && cl bundler.cc -I deps /Ox /Oy /MT /DNDEBUG /DBUNDLE_USE_OMP_TIMER=1 /EHsc /link setargv.obj 
 echo windows && mt.exe -manifest bundler.exe.manifest -outputresource:bundler.exe;1

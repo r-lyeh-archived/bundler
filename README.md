@@ -34,7 +34,7 @@ Options:
         (*): Specify as many encoders as desired. Bundler will evaluate and choose the best compressor for each file.
 ```
 
-### Getting Started
+### Build
 
 ```
 git clone https://github.com/r-lyeh/bundler --recursive
